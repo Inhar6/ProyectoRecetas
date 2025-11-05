@@ -3,6 +3,7 @@
 const express = require('express');
 const axios = require('axios');
 const path = require('path');
+// Se asegura de cargar el .env correctamente, sin importar dónde se ejecute
 require('dotenv').config({ path: path.resolve(__dirname, './.env') }); 
 
 const app = express();
@@ -11,9 +12,14 @@ const MS_CATALOGO_URL = process.env.MS_CATALOGO_URL;
 const MS_VALORACIONES_URL = process.env.MS_VALORACIONES_URL;
 
 // --- CONFIGURACIÓN CRÍTICA ---
+// Middleware para parsear el cuerpo de las peticiones JSON (necesario para POST)
 app.use(express.json());
 
-const FRONTEND_PATH = path.resolve(__dirname, '../frontend');
+// 1. CORRECCIÓN DE RUTA ESTÁTICA: 
+// '__dirname' es '/app'. Buscamos en './frontend' -> '/app/frontend'.
+// Esto coincide con el mapeo del volumen en docker-compose: ./frontend:/app/frontend
+const FRONTEND_PATH = path.resolve(__dirname, './frontend'); 
+// ANTES ERA: const FRONTEND_PATH = path.resolve(__dirname, '../frontend');
 console.log(`Sirviendo archivos estáticos desde: ${FRONTEND_PATH}`);
 app.use(express.static(FRONTEND_PATH)); 
 // ----------------------------------------------------------------------------------
@@ -28,42 +34,44 @@ console.log(`URL Valoraciones: ${MS_VALORACIONES_URL}`);
 // --- ENDPOINT PRINCIPAL: Agregación de Datos (GET /recetas) ---
 app.get('/api/v1/recetas', async (req, res) => {
     try {
+        // 1. LLamada a Python (Catálogo): Obtener recetas base
         const recetasResponse = await axios.get(`${MS_CATALOGO_URL}/recetas`);
         const recetas = recetasResponse.data;
-        
-        const valoracionesResponse = await axios.get(`${MS_VALORACIONES_URL}/valoraciones/medias`);
-        const mediasValoraciones = valoracionesResponse.data; 
-        
-        const recetasConRating = recetas.map(receta => {
-            const ratingData = mediasValoraciones.find(m => m.receta_id === receta.receta_id);
-            receta.average_rating = ratingData ? parseFloat(ratingData.average_rating.toFixed(1)) : null;
-            return receta;
+
+        // Si no hay recetas, devolver una lista vacía para no fallar
+        if (recetas.length === 0) {
+            return res.status(200).json([]);
+        }
+
+        // 2. LLamada a Node.js (Valoraciones): Obtener medias
+        // Creamos un array de IDs para la petición
+        const recetaIds = recetas.map(r => r.receta_id);
+        const valoracionesResponse = await axios.post(`${MS_VALORACIONES_URL}/valoraciones/medias`, {
+            receta_ids: recetaIds
+        });
+        const valoracionesMap = valoracionesResponse.data; // { 'REC001': 4.5, ... }
+
+        // 3. Agregación: Combinar los datos
+        const recetasAgregadas = recetas.map(receta => {
+            const media = valoracionesMap[receta.receta_id] || null;
+            return {
+                ...receta,
+                average_rating: media,
+            };
         });
 
-        res.status(200).json(recetasConRating);
+        res.status(200).json(recetasAgregadas);
 
     } catch (error) {
-        console.error("Error en la agregación de /api/v1/recetas:", error.message);
-        res.status(500).json({ message: "Error al orquestar la agregación de datos de recetas." });
-    }
-});
-
-
-// --- NUEVA RUTA: Crear Receta (POST /recetas) ---
-app.post('/api/v1/recetas', async (req, res) => {
-    try {
-        // Redirecciona la petición POST al MS de Catálogo
-        const response = await axios.post(`${MS_CATALOGO_URL}/recetas`, req.body);
-        res.status(response.status).json(response.data);
-    } catch (error) {
-        console.error("Error al redireccionar creación de receta:", error.message);
+        console.error("Error al orquestar /recetas:", error.message);
+        // Si el Catálogo o Valoraciones no responden, el Gateway devuelve 500
         const status = error.response ? error.response.status : 500;
-        const message = error.response && error.response.data ? error.response.data : { message: "Error al intentar contactar al Microservicio de Catálogo." };
+        const message = error.response && error.response.data ? error.response.data : { message: "Error de orquestación en el Gateway." };
         res.status(status).json(message);
     }
 });
 
-// --- RUTA PROXY: Enviar Valoración (POST /valoraciones/:recetaId) ---
+// --- ENRUTAMIENTO PROXY: Enviar Valoración (POST /valoraciones/:recetaId) ---
 app.post('/api/v1/valoraciones/:recetaId', async (req, res) => {
     try {
         const recetaId = req.params.recetaId;
@@ -76,21 +84,6 @@ app.post('/api/v1/valoraciones/:recetaId', async (req, res) => {
         res.status(status).json(message);
     }
 });
-
-// --- RUTA PROXY: Obtener TODAS las Valoraciones de una Receta (GET /valoraciones/:recetaId) ---
-app.get('/api/v1/valoraciones/:recetaId', async (req, res) => {
-    try {
-        const recetaId = req.params.recetaId;
-        const response = await axios.get(`${MS_VALORACIONES_URL}/valoraciones/${recetaId}`);
-        res.status(response.status).json(response.data);
-    } catch (error) {
-        console.error(`Error al obtener valoraciones para ${req.params.recetaId}:`, error.message);
-        const status = error.response ? error.response.status : 500;
-        const message = error.response && error.response.data ? error.response.data : { message: "Error al intentar contactar al Microservicio de Valoraciones." };
-        res.status(status).json(message);
-    }
-});
-
 
 // --- ENRUTAMIENTO DIRECTO: Detalle de Receta (GET /recetas/:recetaId) ---
 app.get('/api/v1/recetas/:recetaId', async (req, res) => {
@@ -132,5 +125,6 @@ app.get(/.*/, (req, res) => {
 // ----------------------------------------------------------------------------------
 
 app.listen(GATEWAY_PORT, () => {
-    console.log(`API Gateway escuchando en el puerto ${GATEWAY_PORT}`);
+    console.log(`🚀 API Gateway corriendo en el puerto ${GATEWAY_PORT}`);
+    console.log('----------------------------------------------------------------');
 });

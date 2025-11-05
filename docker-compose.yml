@@ -17,12 +17,15 @@ services:
       - ./ms-catalogo-py/.env
     depends_on:
       - ms-recetas-db 
-    # Mantenemos el Healthcheck para buena práctica
+    
+    # === CORRECCIÓN CRÍTICA: HEALTHCHECK ===
+    # Permite a Docker saber cuándo la aplicación Flask está realmente lista.
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/recetas"] 
       interval: 10s
       timeout: 5s
       retries: 5
+    # ======================================
 
   ms-valoraciones-nodejs:
     build: 
@@ -45,21 +48,23 @@ services:
       - "8080:8080" 
     volumes:
       - ./api-gateway:/app
-      # === CORRECCIÓN 1: RUTA DE VOLUMEN DEL FRONTEND ===
-      # Mapea la carpeta del Host (./frontend) a la ruta esperada por Node.js (/frontend)
-      - ./frontend:/frontend 
-      # =================================================
+      # === CORRECCIÓN DE RUTA CRÍTICA PARA CI ===
+      # Mapea el frontend a una subcarpeta del código del Gateway para eliminar ambigüedades.
+      - ./frontend:/app/frontend 
+      # ==========================================
     env_file:
       - ./api-gateway/.env
     
-    # === CORRECCIÓN 2: COMANDO DE RETRASO PARA SINCRONIZACIÓN ===
-    # El Gateway espera 20 segundos antes de iniciar su servidor Node.js.
-    command: sh -c "sleep 20 && node server.js" 
-    # Dependencia simple
+    # === CORRECCIÓN CRÍTICA: DEPENDENCIAS CONDICIONALES ===
+    # El Gateway espera a que el Catálogo esté COMPLETO (service_healthy).
     depends_on:
-      - ms-catalogo-py
-      - ms-valoraciones-nodejs
-    # =========================================================
+      ms-catalogo-py:
+        condition: service_healthy # Espera a que Flask responda OK
+      ms-valoraciones-nodejs:
+        condition: service_started
+    # ====================================================
+    # Nota: Eliminamos el 'command: sleep 20 && node server.js'
+    # La dependencia por healthcheck es superior y más precisa.
 
   # ------------------------------------
   # 2. BASES DE DATOS
@@ -90,7 +95,7 @@ services:
       - valoraciones_data:/data/db
 
 # ------------------------------------
-# 3. VOLÚMENES
+# 3. VOLUMENES
 # ------------------------------------
 volumes:
   recetas_data:
