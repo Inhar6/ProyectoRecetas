@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recetas Gourmet - Microservicios Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Estilos base para el scroll y fuente Inter */
+        body { font-family: 'Inter', sans-serif; background-color: #f7f9fc; }
+        /* --- ESTILOS PARA EL MODAL DE DETALLE Y VALORACIÓN --- */
+        .modal {
+            display: none; 
+            position: fixed;
+            z-index: 100; 
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.7); 
+            backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto; /* Ajustado para mejor centrado vertical */
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%; 
+            max-width: 700px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            animation-name: animatetop;
+            animation-duration: 0.4s
+        }
+        /* Animación para el modal */
+        @keyframes animatetop {
+            from {top: -300px; opacity: 0}
+            to {top: 0; opacity: 1}
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <header class="bg-indigo-700 shadow-lg p-4 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <h1 class="text-3xl font-extrabold text-white tracking-tight">
+                🍜 Recetas Gourmet (MS Demo)
+            </h1>
+            <button onclick="window.location.reload()" class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-200">
+                Recargar
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        
+        <div class="mb-8 p-6 bg-white rounded-xl shadow-lg border border-gray-100">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Administración de Datos</h2>
+            <div class="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
+                <p id="ingesta-status" class="text-sm font-medium text-gray-600">
+                    Asegúrate de cargar los datos iniciales si no ves recetas.
+                </p>
+                <button id="load-data-btn" class="bg-pink-600 hover:bg-pink-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+                    Cargar Datos de Ejemplo
+                </button>
+            </div>
+        </div>
+
+        <div class="mb-8 p-6 bg-white rounded-xl shadow-lg border border-gray-100">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4 flex justify-between items-center cursor-pointer" id="toggle-creation-form">
+                <span>📝 Nueva Receta</span>
+                <span id="toggle-icon" class="text-2xl transform rotate-0 transition duration-300">+</span>
+            </h2>
+            
+            <div id="creation-form-container" class="hidden pt-4 border-t mt-4">
+                <form id="create-recipe-form" class="space-y-4">
+                    <div>
+                        <label for="new-titulo" class="block text-sm font-medium text-gray-700">Título</label>
+                        <input type="text" id="new-titulo" name="titulo" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border">
+                    </div>
+                    <div>
+                        <label for="new-descripcion" class="block text-sm font-medium text-gray-700">Descripción</label>
+                        <textarea id="new-descripcion" name="descripcion" rows="3" required
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"></textarea>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label for="new-tiempo" class="block text-sm font-medium text-gray-700">Tiempo (minutos)</label>
+                            <input type="number" id="new-tiempo" name="tiempo_preparacion" min="1" required
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border">
+                        </div>
+                        <div>
+                            <label for="new-dificultad" class="block text-sm font-medium text-gray-700">Dificultad</label>
+                            <select id="new-dificultad" name="dificultad" required
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border">
+                                <option value="Fácil">Fácil</option>
+                                <option value="Media">Media</option>
+                                <option value="Difícil">Difícil</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label for="new-ingredientes" class="block text-sm font-medium text-gray-700">Ingredientes (separados por coma)</label>
+                        <textarea id="new-ingredientes" name="ingredientes" rows="2" required
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border"
+                                  placeholder="p. ej.: harina, huevo, azúcar"></textarea>
+                    </div>
+                    
+                    <div class="flex items-center justify-between pt-2">
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+                            Crear Receta
+                        </button>
+                        <p id="create-status" class="text-sm font-medium text-gray-600"></p>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Catálogo de Recetas</h2>
+        <p id="status-message" class="text-gray-500 mb-4">Cargando...</p>
+        
+        <div class="mb-6">
+            <input type="text" id="search-input" placeholder="Buscar por título..."
+                   class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+
+        <div id="recetas-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            </div>
+    </main>
+
+    <div id="recipe-modal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-start border-b pb-3 mb-4">
+                <h2 id="modal-title" class="text-2xl font-bold text-indigo-700">Cargando...</h2>
+                <span class="close text-gray-600 hover:text-gray-900 text-3xl font-bold cursor-pointer transition duration-150" onclick="closeModal()">&times;</span>
+            </div>
+            
+            <div id="modal-content-details">
+                <p class="text-center text-lg py-10">Cargando detalles de la receta...</p>
+            </div>
+
+            <div id="modal-content-loaded" class="space-y-6 text-gray-700">
+                <div id="modal-details" class="grid grid-cols-2 gap-4 text-sm bg-indigo-50 p-4 rounded-lg">
+                    <div><span class="font-semibold">ID Receta:</span> <span id="modal-id"></span></div>
+                    <div><span class="font-semibold">Tiempo:</span> <span id="modal-tiempo"></span></div>
+                    <div class="col-span-2"><span class="font-semibold">Dificultad:</span> <span id="modal-dificultad"></span></div>
+                </div>
+                
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Descripción</h3>
+                    <p id="modal-description" class="italic"></p>
+                </div>
+
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Ingredientes</h3>
+                    <ul id="modal-ingredientes" class="list-disc list-inside ml-4 space-y-1">
+                        </ul>
+                </div>
+
+                <div class="pt-6 border-t">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">Enviar Valoración</h3>
+                    <form id="rating-form" class="space-y-4">
+                        <div>
+                            <label for="rating-score" class="block text-sm font-medium text-gray-700">Puntuación (1-5):</label>
+                            <input type="number" id="rating-score" name="puntuacion" min="1" max="5" required
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                        </div>
+                        <div>
+                            <label for="rating-comment" class="block text-sm font-medium text-gray-700">Comentario (Opcional):</label>
+                            <textarea id="rating-comment" name="comentario" rows="3"
+                                      class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border"></textarea>
+                        </div>
+                        
+                        <div class="flex items-center justify-between pt-2">
+                            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 w-full sm:w-auto">
+                                Enviar Valoración
+                            </button>
+                            <p id="rating-status" class="text-sm font-medium text-gray-600"></p>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="pt-6 border-t mt-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">Comentarios Existentes</h3>
+                    <div id="modal-ratings-list" class="space-y-4 max-h-64 overflow-y-auto p-3 rounded-lg bg-gray-50 border border-gray-200 shadow-inner">
+                        <p class="text-gray-500 text-center" id="no-comments-message">Cargando comentarios...</p>
+                    </div>
+                </div>
+                </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

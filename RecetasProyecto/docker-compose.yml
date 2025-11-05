@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  # ------------------------------------
+  # 1. MICROSERVICIOS Y GATEWAY
+  # ------------------------------------
+  ms-catalogo-py:
+    build: 
+      context: ./ms-catalogo-py
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000" 
+    volumes:
+      - ./ms-catalogo-py:/app
+      - ./data-externa:/app/data-externa
+    env_file:
+      - ./ms-catalogo-py/.env
+    depends_on:
+      - ms-recetas-db 
+    # Mantenemos el Healthcheck para buena práctica
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/recetas"] 
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ms-valoraciones-nodejs:
+    build: 
+      context: ./ms-valoraciones-nodejs
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./ms-valoraciones-nodejs:/app
+    env_file:
+      - ./ms-valoraciones-nodejs/.env
+    depends_on:
+      - ms-valoraciones-db
+
+  api-gateway:
+    build: 
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080" 
+    volumes:
+      - ./api-gateway:/app
+      # === CORRECCIÓN 1: RUTA DE VOLUMEN DEL FRONTEND ===
+      # Mapea la carpeta del Host (./frontend) a la ruta esperada por Node.js (/frontend)
+      - ./frontend:/frontend 
+      # =================================================
+    env_file:
+      - ./api-gateway/.env
+    
+    # === CORRECCIÓN 2: COMANDO DE RETRASO PARA SINCRONIZACIÓN ===
+    # El Gateway espera 20 segundos antes de iniciar su servidor Node.js.
+    command: sh -c "sleep 20 && node server.js" 
+    # Dependencia simple
+    depends_on:
+      - ms-catalogo-py
+      - ms-valoraciones-nodejs
+    # =========================================================
+
+  # ------------------------------------
+  # 2. BASES DE DATOS
+  # ------------------------------------
+  ms-recetas-db:
+    image: postgres:14-alpine
+    container_name: ms_recetas_db
+    restart: always
+    environment:
+      POSTGRES_USER: user_recetas
+      POSTGRES_PASSWORD: password_recetas
+      POSTGRES_DB: recetas_db
+    ports:
+      - "5432:5432" 
+    volumes:
+      - recetas_data:/var/lib/postgresql/data
+
+  ms-valoraciones-db:
+    image: mongo:6.0
+    container_name: ms_valoraciones_db
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: user_valoraciones
+      MONGO_INITDB_ROOT_PASSWORD: password_valoraciones
+    ports:
+      - "27017:27017"
+    volumes:
+      - valoraciones_data:/data/db
+
+# ------------------------------------
+# 3. VOLÚMENES
+# ------------------------------------
+volumes:
+  recetas_data:
+  valoraciones_data:

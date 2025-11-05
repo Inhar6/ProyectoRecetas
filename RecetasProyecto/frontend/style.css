@@ -1,0 +1,151 @@
+/* Base de Estilos */
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f4f7f6;
+    color: #333;
+    margin: 0;
+    padding: 20px;
+    line-height: 1.6;
+}
+
+h1 {
+    color: #007bff; /* Azul brillante */
+    text-align: center;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 10px;
+}
+
+/* Contenedor del Listado */
+#recetas-list {
+    display: grid;
+    /* Crea un grid de 3 columnas en pantallas grandes */
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Estilo para cada tarjeta de Receta */
+.receta-card {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.receta-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.receta-card h2 {
+    color: #28a745; /* Verde para el título */
+    margin-top: 0;
+    font-size: 1.5em;
+}
+
+.receta-card p {
+    margin: 5px 0;
+    font-size: 0.95em;
+}
+
+/* Puntuación (Estrellas) */
+.receta-card p:last-of-type {
+    font-weight: bold;
+    color: #ffc107; /* Amarillo para estrellas */
+    font-size: 1.1em;
+}
+
+/* Botón de Acción */
+button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background-color 0.2s;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+hr {
+    border: 0;
+    height: 1px;
+    background: #e0e0e0;
+    margin: 15px 0;
+}
+
+/* Estilo para mensajes de error/carga */
+p[style*="color: red"] {
+    grid-column: 1 / -1; /* Ocupa todo el ancho en el grid */
+    text-align: center;
+    padding: 20px;
+    background-color: #ffebeb;
+    border: 1px solid #dc3545;
+    border-radius: 5px;
+}
+
+/* Media Queries para responsividad */
+@media (max-width: 768px) {
+    #recetas-list {
+        grid-template-columns: 1fr; /* Una sola columna en móviles */
+    }
+}
+
+/* Fondo oscurecido */
+.modal {
+    display: none; 
+    position: fixed;
+    z-index: 100; /* Asegura que esté encima de todo */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.7); 
+}
+
+/* Contenido del modal */
+.modal-content {
+    background-color: #fefefe;
+    margin: 10% auto; /* Centrado vertical y horizontal */
+    padding: 30px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 600px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+}
+
+/* Botón de cierre */
+.close-button {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: #000;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+/* Formulario */
+#rating-form input[type="number"], 
+#rating-form textarea {
+    width: 100%;
+    padding: 8px;
+    margin-top: 5px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
