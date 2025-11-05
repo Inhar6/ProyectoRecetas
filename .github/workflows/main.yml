@@ -16,26 +16,23 @@ jobs:
         uses: actions/checkout@v4
 
       # --- Configuración de Docker ---
+      # Esta acción es crítica; configura Docker y es suficiente para el comando 'docker compose'.
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         
-      # === SOLUCIÓN CRÍTICA PARA EL ERROR 'executable file not found' ===
-      - name: Set up Docker Compose Tool 🛠️
-        uses: docker/compose-action/setup@v3 
-      # =================================================================
+      # === IMPORTANTE: Se elimina la acción 'docker/compose-action/setup' ===
+      # La eliminamos para evitar conflictos de permisos con el daemon de Docker.
 
       - name: Build & Run Docker Compose 🐳
-        # Ahora el comando 'docker compose' funcionará gracias al paso anterior.
+        # El comando 'docker compose' (sin guion) debe funcionar correctamente ahora.
         run: docker compose up --build -d
 
       # --- Verificación de Salud y Estabilidad ---
       - name: Wait for Python Service Health Check (DB Connected) ⏳
-        # Espera un tiempo base + busca la confirmación de la conexión a PostgreSQL.
         run: |
           echo "Esperando 25 segundos para que los contenedores se estabilicen..."
           sleep 25
           
-          # La verificación debe buscar la línea de éxito del log del contenedor Catálogo (Python).
           if docker compose logs ms-catalogo-py | grep "Tablas de PostgreSQL verificadas/creadas con éxito."; then
             echo "✅ El Microservicio de Catálogo está conectado a PostgreSQL."
           else
@@ -55,7 +52,6 @@ jobs:
           for i in $(seq 1 $MAX_RETRIES); do
             echo "Intento $i/$MAX_RETRIES: Probando http://localhost:8080/api/v1/recetas"
             
-            # Intenta conectar y falla si el código de respuesta es 4xx/5xx o si no conecta
             if curl -s -f http://localhost:8080/api/v1/recetas; then
               echo "✅ El API Gateway respondió con éxito."
               exit 0 
@@ -70,5 +66,5 @@ jobs:
 
       # --- Limpieza ---
       - name: Cleanup Containers
-        if: always() # Ejecuta siempre para liberar recursos
+        if: always() 
         run: docker compose down -v
