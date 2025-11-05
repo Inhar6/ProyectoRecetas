@@ -5,50 +5,70 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  # Permite ejecutar el workflow manualmente desde la interfaz de GitHub
   workflow_dispatch:
 
 jobs:
   build_and_test:
-    # Ejecuta en un entorno Ubuntu Linux reciente
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout Código 📦
         uses: actions/checkout@v4
 
-      # --- Configuración de Docker y dependencias ---
+      # --- Configuración de Docker ---
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         
+      # === SOLUCIÓN CRÍTICA PARA EL ERROR 'executable file not found' ===
+      - name: Set up Docker Compose Tool 🛠️
+        uses: docker/compose-action/setup@v3 
+      # =================================================================
+
       - name: Build & Run Docker Compose 🐳
-        # El flag --build asegura que se construyan las imágenes más recientes
+        # Ahora el comando 'docker compose' funcionará gracias al paso anterior.
         run: docker compose up --build -d
 
       # --- Verificación de Salud y Estabilidad ---
-      # **Paso CRÍTICO:** Espera a que el servicio Python esté listo.
-      - name: Wait for Python Service Health Check ⏳
-        # La pausa es necesaria para superar la fase de reintento de conexión a PostgreSQL
+      - name: Wait for Python Service Health Check (DB Connected) ⏳
+        # Espera un tiempo base + busca la confirmación de la conexión a PostgreSQL.
         run: |
-          echo "Esperando 25 segundos para que los contenedores se estabilicen (Python DB retries)..."
+          echo "Esperando 25 segundos para que los contenedores se estabilicen..."
           sleep 25
-          # Verificación avanzada: Búsqueda de logs de éxito del catálogo
+          
+          # La verificación debe buscar la línea de éxito del log del contenedor Catálogo (Python).
           if docker compose logs ms-catalogo-py | grep "Tablas de PostgreSQL verificadas/creadas con éxito."; then
-            echo "El Microservicio de Catálogo está conectado a PostgreSQL."
+            echo "✅ El Microservicio de Catálogo está conectado a PostgreSQL."
           else
-            echo "ERROR: El Microservicio de Catálogo falló al conectar a PostgreSQL."
-            exit 1 # Falla el job si no encuentra el mensaje de éxito
+            echo "❌ ERROR: El Microservicio de Catálogo falló al conectar a PostgreSQL. Revisar logs."
+            docker compose logs ms-catalogo-py
+            exit 1 
           fi
           
-      # --- Prueba de Integración (End-to-End Básico) ---
-      - name: Run Gateway Integration Test ✅
-        # Prueba la comunicación entre el Gateway (8080) y el Catálogo (5000)
-        # curl --fail fuerza a que el job falle si recibe un código de error (4xx/5xx)
+      # --- Prueba de Integración (End-to-End con Reintento) ---
+      - name: Run Gateway Integration Test (Robust Retry Logic) ✅
+        # Utiliza un bucle de reintento para ser robusto ante pequeños retrasos de arranque.
         run: |
-          echo "Probando el endpoint principal del Gateway..."
-          curl --fail http://localhost:8080/api/v1/recetas
+          echo "Probando el endpoint principal del Gateway con reintentos..."
+          MAX_RETRIES=10
+          RETRY_DELAY=5
+          
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Intento $i/$MAX_RETRIES: Probando http://localhost:8080/api/v1/recetas"
+            
+            # Intenta conectar y falla si el código de respuesta es 4xx/5xx o si no conecta
+            if curl -s -f http://localhost:8080/api/v1/recetas; then
+              echo "✅ El API Gateway respondió con éxito."
+              exit 0 
+            else
+              echo "Conexión rechazada o error HTTP. Esperando ${RETRY_DELAY} segundos..."
+              sleep $RETRY_DELAY
+            fi
+          done
+          
+          echo "❌ ERROR FATAL: El API Gateway no respondió después de $MAX_RETRIES intentos."
+          exit 1 
 
       # --- Limpieza ---
       - name: Cleanup Containers
-        if: always() # Ejecuta siempre, incluso si los pasos anteriores fallan
+        if: always() # Ejecuta siempre para liberar recursos
         run: docker compose down -v
