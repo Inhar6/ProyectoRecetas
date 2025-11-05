@@ -1,0 +1,54 @@
+name: Integración Continua (Microservicios Recetas)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  # Permite ejecutar el workflow manualmente desde la interfaz de GitHub
+  workflow_dispatch:
+
+jobs:
+  build_and_test:
+    # Ejecuta en un entorno Ubuntu Linux reciente
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Código 📦
+        uses: actions/checkout@v4
+
+      # --- Configuración de Docker y dependencias ---
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Build & Run Docker Compose 🐳
+        # El flag --build asegura que se construyan las imágenes más recientes
+        run: docker compose up --build -d
+
+      # --- Verificación de Salud y Estabilidad ---
+      # **Paso CRÍTICO:** Espera a que el servicio Python esté listo.
+      - name: Wait for Python Service Health Check ⏳
+        # La pausa es necesaria para superar la fase de reintento de conexión a PostgreSQL
+        run: |
+          echo "Esperando 25 segundos para que los contenedores se estabilicen (Python DB retries)..."
+          sleep 25
+          # Verificación avanzada: Búsqueda de logs de éxito del catálogo
+          if docker compose logs ms-catalogo-py | grep "Tablas de PostgreSQL verificadas/creadas con éxito."; then
+            echo "El Microservicio de Catálogo está conectado a PostgreSQL."
+          else
+            echo "ERROR: El Microservicio de Catálogo falló al conectar a PostgreSQL."
+            exit 1 # Falla el job si no encuentra el mensaje de éxito
+          fi
+          
+      # --- Prueba de Integración (End-to-End Básico) ---
+      - name: Run Gateway Integration Test ✅
+        # Prueba la comunicación entre el Gateway (8080) y el Catálogo (5000)
+        # curl --fail fuerza a que el job falle si recibe un código de error (4xx/5xx)
+        run: |
+          echo "Probando el endpoint principal del Gateway..."
+          curl --fail http://localhost:8080/api/v1/recetas
+
+      # --- Limpieza ---
+      - name: Cleanup Containers
+        if: always() # Ejecuta siempre, incluso si los pasos anteriores fallan
+        run: docker compose down -v
