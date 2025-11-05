@@ -15,16 +15,21 @@ services:
       - ./data-externa:/app/data-externa
     env_file:
       - ./ms-catalogo-py/.env
+      
+    # === DEPENDENCY AJUSTE CRÍTICO ===
+    # El Catálogo espera a que la BBDD esté lista (service_healthy).
     depends_on:
-      - ms-recetas-db 
-    
-    # === AJUSTE DE LA TOLERANCIA DEL HEALTHCHECK PARA CI ===
+      ms-recetas-db:
+        condition: service_healthy # Espera el healthcheck de PostgreSQL
+        
+    # === HEALTHCHECK DEL CATÁLOGO (Ajustado) ===
+    # Permite a Docker saber cuándo la aplicación Flask está realmente lista.
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/recetas"] 
-      interval: 15s # Aumentar el intervalo
-      timeout: 10s # Dar más tiempo para una respuesta lenta
-      retries: 8 # Permitir más reintentos
-    # ======================================================
+      interval: 15s 
+      timeout: 10s 
+      retries: 8 # Mantenemos los reintentos altos por seguridad
+    # ==========================================
 
   ms-valoraciones-nodejs:
     build: 
@@ -51,7 +56,7 @@ services:
     env_file:
       - ./api-gateway/.env
     
-    # Espera a que el Catálogo esté COMPLETO y SANO
+    # El Gateway espera a que el Catálogo esté COMPLETO y SANO
     depends_on:
       ms-catalogo-py:
         condition: service_healthy 
@@ -73,6 +78,15 @@ services:
       - "5432:5432" 
     volumes:
       - recetas_data:/var/lib/postgresql/data
+      
+    # === NUEVO HEALTHCHECK PARA POSTGRESQL ===
+    # Espera a que la BBDD pueda aceptar comandos SQL.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    # =======================================
 
   ms-valoraciones-db:
     image: mongo:6.0

@@ -4,18 +4,21 @@ FROM python:3.11-slim
 # Establecer la carpeta de trabajo dentro del contenedor
 WORKDIR /app
 
-# Copiar el archivo de dependencias y la carpeta data-externa
-COPY requirements.txt .
-# Necesario para la ingesta de datos y el .env
-# Hemos quitado la linea 'COPY ../data-externa ./data-externa' que fallaba.
-# La carpeta 'data-externa' será montada mediante volumenes en docker-compose.yml
+# === CORRECCIÓN CRÍTICA: Instalar CURL para el Healthcheck ===
+# Esto asegura que el healthcheck definido en docker-compose.yml pueda ejecutarse.
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# ============================================================
 
-# Instalar las dependencias
+# 1. Copiar solo el archivo de dependencias (para aprovechar el cache de Docker)
+COPY requirements.txt .
+
+# 2. Instalar las dependencias
 # El flag --no-cache-dir reduce el tamaño final de la imagen
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar el código del microservicio
+# 3. Copiar el código de la aplicación y el archivo de entorno
 COPY app.py .
+COPY .env .
 
 # Exponer el puerto de Flask (5000)
 EXPOSE 5000
