@@ -18,14 +18,13 @@ services:
     depends_on:
       - ms-recetas-db 
     
-    # === CORRECCIÓN CRÍTICA: HEALTHCHECK ===
-    # Permite a Docker saber cuándo la aplicación Flask está realmente lista.
+    # === AJUSTE DE LA TOLERANCIA DEL HEALTHCHECK PARA CI ===
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/recetas"] 
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    # ======================================
+      interval: 15s # Aumentar el intervalo
+      timeout: 10s # Dar más tiempo para una respuesta lenta
+      retries: 8 # Permitir más reintentos
+    # ======================================================
 
   ms-valoraciones-nodejs:
     build: 
@@ -48,23 +47,16 @@ services:
       - "8080:8080" 
     volumes:
       - ./api-gateway:/app
-      # === CORRECCIÓN DE RUTA CRÍTICA PARA CI ===
-      # Mapea el frontend a una subcarpeta del código del Gateway para eliminar ambigüedades.
       - ./frontend:/app/frontend 
-      # ==========================================
     env_file:
       - ./api-gateway/.env
     
-    # === CORRECCIÓN CRÍTICA: DEPENDENCIAS CONDICIONALES ===
-    # El Gateway espera a que el Catálogo esté COMPLETO (service_healthy).
+    # Espera a que el Catálogo esté COMPLETO y SANO
     depends_on:
       ms-catalogo-py:
-        condition: service_healthy # Espera a que Flask responda OK
+        condition: service_healthy 
       ms-valoraciones-nodejs:
         condition: service_started
-    # ====================================================
-    # Nota: Eliminamos el 'command: sleep 20 && node server.js'
-    # La dependencia por healthcheck es superior y más precisa.
 
   # ------------------------------------
   # 2. BASES DE DATOS
