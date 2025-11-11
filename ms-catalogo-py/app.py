@@ -2,9 +2,8 @@
 import os
 import sys 
 import time
-import json # Necesario para manejar la columna de ingredientes
-import uuid # Necesario para generar IDs únicos
-from flask import Flask, jsonify, request # Importamos request para manejar POST
+import uuid 
+from flask import Flask, jsonify, request 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text 
 import pandas as pd
@@ -14,14 +13,17 @@ from dotenv import load_dotenv
 # 1. CONFIGURACIÓN INICIAL Y VERIFICACIÓN
 # ----------------------------------------------------
 
+# **Aseguramos la carga de variables de entorno**
 load_dotenv() 
 
 DATABASE_URL = os.getenv('DATABASE_URL')
+# Ruta al archivo CSV. Es accesible porque el volumen está mapeado en docker-compose.yml.
 DATA_EXTERNA_PATH = './data-externa/recetas_externas.csv'
 
+# **Verificación de la URL**
 if not DATABASE_URL:
     print("FATAL ERROR: DATABASE_URL no se ha cargado. Revisa el archivo .env.")
-    sys.exit(1)
+    sys.exit(1) # Salir si no hay URL de BBDD
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
@@ -37,168 +39,113 @@ class Receta(db.Model):
     """Define la tabla de Recetas."""
     __tablename__ = 'recetas' 
     id = db.Column(db.Integer, primary_key=True)
+    # Columna clave que se usará para la API y la agregación de valoraciones
     receta_id = db.Column(db.String(50), unique=True, nullable=False) 
-    titulo = db.Column(db.String(255), nullable=False)
+    nombre = db.Column(db.String(255), nullable=False)
     descripcion = db.Column(db.Text)
-    tiempo_preparacion = db.Column(db.Integer)
-    dificultad = db.Column(db.String(50))
-    ingredientes = db.Column(db.Text) 
-
+    ingredientes = db.Column(db.Text) # Almacenado como string
+    instrucciones = db.Column(db.Text)
+    tiempo_preparacion = db.Column(db.String(100))
+    categoria = db.Column(db.String(100))
+    
     def to_dict(self):
-        """Convierte el objeto Receta a un diccionario, parseando el JSON de ingredientes."""
+        """Convierte el objeto Receta a un diccionario para JSON."""
         return {
-            'receta_id': self.receta_id,
-            'titulo': self.titulo,
+            'recetaId': self.receta_id, 
+            'nombre': self.nombre,
             'descripcion': self.descripcion,
+            'ingredientes': self.ingredientes,
+            'instrucciones': self.instrucciones,
             'tiempo_preparacion': self.tiempo_preparacion,
-            'dificultad': self.dificultad,
-            'ingredientes': json.loads(self.ingredientes) if self.ingredientes else []
+            'categoria': self.categoria
         }
 
 # ----------------------------------------------------
-# 3. FUNCIONES UTILITARIAS DE CONEXIÓN
+# 3. ENDPOINTS
 # ----------------------------------------------------
 
-from contextlib import contextmanager
-from sqlalchemy import create_engine
-
-engine = create_engine(DATABASE_URL)
-
-@contextmanager
-def get_db_connection():
-    """Proporciona una conexión raw a la base de datos."""
-    conn = None
-    try:
-        conn = engine.connect()
-        yield conn
-    finally:
-        if conn:
-            conn.close()
-
-# ----------------------------------------------------
-# 4. ENDPOINTS DE LA API (MS-CATÁLOGO)
-# ----------------------------------------------------
-
+# Endpoint de listado de recetas (NECESARIO para Healthcheck)
 @app.route('/recetas', methods=['GET'])
-def listar_recetas():
-    """Devuelve el listado completo de recetas."""
-    try:
+def get_recetas():
+    """Devuelve la lista completa de recetas."""
+    with app.app_context():
         recetas = Receta.query.all()
-        return jsonify([r.to_dict() for r in recetas]), 200
-    except Exception as e:
-        app.logger.error(f"Error al listar recetas: {e}")
-        return jsonify({"message": "Error interno al obtener recetas."}), 500
+        # Usa el método to_dict para serializar la lista
+        recetas_schema = [r.to_dict() for r in recetas] 
+        return jsonify(recetas_schema), 200
 
 
-@app.route('/recetas/<receta_id>', methods=['GET'])
-def obtener_detalle_receta(receta_id):
-    """Devuelve el detalle de una receta específica."""
-    try:
+# Endpoint de detalle de receta por ID
+@app.route('/recetas/<string:receta_id>', methods=['GET'])
+def get_receta_by_id(receta_id):
+    """Devuelve una receta específica por su receta_id."""
+    with app.app_context():
         receta = Receta.query.filter_by(receta_id=receta_id).first()
-        if receta:
-            return jsonify(receta.to_dict()), 200
-        else:
-            return jsonify({"message": f"Receta con ID {receta_id} no encontrada."}), 404
-    except Exception as e:
-        app.logger.error(f"Error al obtener detalle de receta {receta_id}: {e}")
-        return jsonify({"message": "Error interno al obtener el detalle de la receta."}), 500
-
-
-@app.route('/recetas', methods=['POST'])
-def crear_receta():
-    """Crea una nueva receta en la base de datos PostgreSQL."""
-    try:
-        if not request.is_json:
-            return jsonify({"message": "Content-Type debe ser application/json"}), 415
-
-        data = request.json
-        required_fields = ['titulo', 'descripcion', 'tiempo_preparacion', 'dificultad', 'ingredientes']
-        if not all(key in data for key in required_fields):
-            return jsonify({"message": "Faltan campos obligatorios para crear la receta."}), 400
+        if not receta:
+            return jsonify({"message": "Receta no encontrada"}), 404
         
-        if not isinstance(data.get('tiempo_preparacion'), int) or data.get('tiempo_preparacion') <= 0:
-            return jsonify({"message": "El campo 'tiempo_preparacion' debe ser un número entero positivo."}), 400
-        if not isinstance(data.get('ingredientes'), list):
-            return jsonify({"message": "El campo 'ingredientes' debe ser una lista."}), 400
+        return jsonify(receta.to_dict()), 200
 
 
-        # Generar un ID único
-        receta_id = f"REC-{uuid.uuid4().hex[:8].upper()}"
-
-        query = """
-            INSERT INTO recetas (receta_id, titulo, descripcion, tiempo_preparacion, dificultad, ingredientes)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            RETURNING receta_id, titulo;
-        """
-        # Convertir lista Python a string JSON para PostgreSQL
-        ingredientes_json = json.dumps(data['ingredientes']) 
-        
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(query, (
-                    receta_id, 
-                    data['titulo'], 
-                    data['descripcion'], 
-                    data['tiempo_preparacion'], 
-                    data['dificultad'], 
-                    ingredientes_json 
-                ))
-                new_recipe = cur.fetchone()
-                conn.commit()
-                
-        return jsonify({
-            "receta_id": new_recipe[0],
-            "titulo": new_recipe[1],
-            "message": "Receta creada con éxito."
-        }), 201
-
-    except Exception as e:
-        app.logger.error(f"Error al crear receta: {e}")
-        return jsonify({"message": "Error interno del servidor al crear la receta."}), 500
-
-
+# Endpoint de administración para cargar datos (Ingesta ETL)
 @app.route('/admin/cargar_datos', methods=['POST'])
-def cargar_datos():
-    """Carga datos iniciales desde el CSV, borrando los existentes."""
+def cargar_datos_externos():
+    """Carga datos del archivo CSV en la base de datos."""
+    print("Iniciando proceso de ingesta de datos...")
     try:
+        # 1. Limpieza de datos existentes
+        with app.app_context():
+            db.session.query(Receta).delete()
+            db.session.commit()
+
+        # 2. Carga del archivo CSV (Usamos el separador ',' confirmado)
         df = pd.read_csv(DATA_EXTERNA_PATH)
-        print(f"INFO: Se cargaron {len(df)} registros del archivo CSV.")
-
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute('DELETE FROM recetas;') 
-                
-                for index, row in df.iterrows():
-                    ingredientes_list = [ing.strip() for ing in row['ingredientes'].split(';')]
-                    ingredientes_json = json.dumps(ingredientes_list)
-                    
-                    query = """
-                        INSERT INTO recetas (receta_id, titulo, descripcion, tiempo_preparacion, dificultad, ingredientes)
-                        VALUES (%s, %s, %s, %s, %s, %s);
-                    """
-                    cur.execute(query, (
-                        row['receta_id'],
-                        row['titulo'],
-                        row.get('descripcion', 'Sin descripción.'), 
-                        int(row['tiempo_preparacion']),
-                        row['dificultad'],
-                        ingredientes_json
-                    ))
-
-                conn.commit()
         
-        db.session.remove()
+        # 3. Transformación e Inserción
+        nuevas_recetas = []
+        for index, row in df.iterrows():
+            # Mapeo y corrección de tipos: Usamos .fillna('') para evitar NaN/None,
+            # y str() para asegurar que todo es una cadena de texto.
+            
+            # --- Correcciones de mapeo de CSV a Modelo ---
+            nombre_val = str(row['titulo']).strip() if 'titulo' in row else ''
+            ingredientes_val = str(row['ingredientes']).strip() if 'ingredientes' in row else ''
+            instrucciones_val = str(row['pasos']).strip() if 'pasos' in row else ''
+            
+            # --- Asignación al Modelo ---
+            receta = Receta(
+                receta_id=str(uuid.uuid4()), # Generamos un ID único por si no existe
+                nombre=nombre_val,
+                descripcion="", # Valor por defecto
+                ingredientes=ingredientes_val, 
+                instrucciones=instrucciones_val, 
+                tiempo_preparacion="", # Valor por defecto
+                categoria="" # Valor por defecto
+            )
+            nuevas_recetas.append(receta)
 
-        return jsonify({"mensaje": f"Se eliminaron y cargaron {len(df)} recetas en PostgreSQL."}), 200
-
+        # 4. Confirmar la transacción
+        with app.app_context():
+            db.session.bulk_save_objects(nuevas_recetas)
+            db.session.commit()
+            
+        return jsonify({
+            "mensaje": f"Carga de datos externa completada. Total de recetas insertadas: {len(nuevas_recetas)}", 
+            "total_recetas": len(nuevas_recetas)
+        }), 201
+        
     except FileNotFoundError:
-        return jsonify({"message": f"Error: Archivo de datos no encontrado en {DATA_EXTERNA_PATH}"}), 500
+        return jsonify({
+            "message": f"ERROR: Archivo no encontrado en la ruta {DATA_EXTERNA_PATH}. ¿Está el volumen montado?"
+        }), 500
     except Exception as e:
         app.logger.error(f"Error durante la ingesta de datos: {e}")
-        return jsonify({"message": "Error interno del servidor durante la ingesta de datos."}), 500
+        # Retornamos un mensaje de error genérico para evitar exponer detalles internos
+        return jsonify({"message": f"Fallo en la ingesta de datos: {str(e)}"}), 500
+
 
 # ----------------------------------------------------
-# 5. INICIO Y CREACIÓN DE TABLAS
+# 4. INICIO Y CREACIÓN DE TABLAS (Con Corrección de Conexión)
 # ----------------------------------------------------
 
 def ensure_db_ready(max_retries=10, delay=3):
@@ -206,13 +153,16 @@ def ensure_db_ready(max_retries=10, delay=3):
     for attempt in range(max_retries):
         with app.app_context():
             try:
+                # CORRECCIÓN CLAVE: Usamos db.engine.begin() para una prueba de conexión robusta
                 with db.engine.begin() as connection:
                      connection.execute(text('SELECT 1')) 
                 
+                # Si la conexión es exitosa, crea las tablas (solo si no existen)
                 db.create_all()
                 print("Tablas de PostgreSQL verificadas/creadas con éxito.")
                 return True
             except Exception as e:
+                # La BBDD no está lista, esperamos y reintentamos.
                 print(f"ADVERTENCIA: Falló la conexión con PostgreSQL (Intento {attempt + 1}/{max_retries}). Reintentando en {delay}s...")
                 time.sleep(delay)
     
@@ -220,7 +170,10 @@ def ensure_db_ready(max_retries=10, delay=3):
     return False
 
 if __name__ == '__main__':
+    # Intentamos asegurar que la BD esté lista y las tablas creadas antes de iniciar Flask.
     if ensure_db_ready():
-        app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+        # Inicia la aplicación Flask solo si la BD está disponible
+        app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False) 
     else:
+        # Si la BD nunca estuvo lista, salimos con error
         sys.exit(1)

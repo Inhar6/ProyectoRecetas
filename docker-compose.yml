@@ -56,6 +56,8 @@ services:
     env_file:
       - ./api-gateway/.env
     
+    command: sh -c "sleep 10 && node server.js"
+
     # El Gateway espera a que el Catálogo esté COMPLETO y SANO
     depends_on:
       ms-catalogo-py:

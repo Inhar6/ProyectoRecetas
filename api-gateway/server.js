@@ -17,9 +17,9 @@ app.use(express.json());
 
 // 1. CORRECCIÓN DE RUTA ESTÁTICA: 
 // '__dirname' es '/app'. Buscamos en './frontend' -> '/app/frontend'.
-// Esto coincide con el mapeo del volumen en docker-compose: ./frontend:/app/frontend
-const FRONTEND_PATH = path.resolve(__dirname, './frontend'); 
-// ANTES ERA: const FRONTEND_PATH = path.resolve(__dirname, '../frontend');
+// CORRECCIÓN CRÍTICA: Apuntamos a la carpeta 'frontend' dentro de '/app'.
+const FRONTEND_PATH = path.resolve(__dirname, 'frontend'); 
+// ANTES ERA: const FRONTEND_PATH = path.resolve(__dirname, '../frontend'); // <--- ¡Asegúrate de que esta línea NO esté activa!
 console.log(`Sirviendo archivos estáticos desde: ${FRONTEND_PATH}`);
 app.use(express.static(FRONTEND_PATH)); 
 // ----------------------------------------------------------------------------------
