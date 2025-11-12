@@ -47,6 +47,37 @@ El proyecto se compone de los siguientes contenedores interconectados, definidos
 
 Para construir, orquestar y arrancar todos los servicios en segundo plano, utiliza el siguiente comando en el directorio raíz del proyecto (donde se encuentra `docker-compose.yml`):
 
-```bash
 # Construye imágenes (solo si hay cambios de código) y arranca todos los servicios en modo 'detached' (-d)
 docker compose up --build -d
+
+## 4️⃣ Acceso a la Parte Cliente
+
+Una vez que todos los contenedores estén activos y estables:
+
+### 4.1. Acceso a la Interfaz Web (Cliente)
+
+Abre tu navegador web y accede al puerto del **API Gateway** para ver la aplicación:
+
+| Componente | Acceso | URL/Acción |
+| :--- | :--- | :--- |
+| **Frontend** | Interfaz web | `http://localhost:8080` |
+| **Ingesta de datos** | Botón de la interfaz | Clic en **"Cargar Datos"** |
+
+### 4.2. Pasos para Cargar Datos
+
+La base de datos de recetas (`ms-recetas-db`) comienza vacía. Debes realizar la ingesta de los datos de prueba mediante la interfaz:
+
+1.  Asegúrate de que `ms-catalogo-py` está **`healthy`**.
+2.  Haz clic en el botón **"Cargar Datos"** en la interfaz web.
+3.  Si la ingesta es exitosa, las recetas aparecerán en la lista principal.
+
+---
+
+## 🗑️ Comandos Útiles
+
+| Comando | Función | Notas |
+| :--- | :--- | :--- |
+| `docker compose stop` | Detiene los contenedores (no los elimina). | Los datos de PostgreSQL y MongoDB **persisten**. |
+| `docker compose restart [servicio]` | Reinicia un servicio específico (ej: `ms-catalogo-py`). | Rápido para aplicar cambios de código. |
+| `docker compose down` | Detiene y elimina los contenedores y redes. | Los datos **persisten** (volúmenes quedan en Docker). |
+| `docker compose down -v` | **¡Limpieza Total!** Detiene y elimina contenedores, redes **y volúmenes de datos**. | **CRÍTICO** para reiniciar las bases de datos desde cero (esquema limpio). |
