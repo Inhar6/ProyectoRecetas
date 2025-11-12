@@ -44,7 +44,6 @@ El proyecto se compone de los siguientes contenedores interconectados, definidos
 
 Para construir, orquestar y arrancar todos los servicios en segundo plano, utiliza el siguiente comando en el directorio raíz del proyecto (donde se encuentra `docker-compose.yml`):
 
-# Construye imágenes (solo si hay cambios de código) y arranca todos los servicios en modo 'detached' (-d)
 docker compose up --build -d
 
 ## 4️⃣ Acceso a la Parte Cliente
