@@ -3,9 +3,6 @@
 [![Estado de CI](https://github.com/Inhar6/ProyectoRecetas/actions/workflows/main.yml/badge.svg)](https://github.com/Inhar6/ProyectoRecetas/actions/workflows/main.yml)
 
 Este proyecto implementa una arquitectura de microservicios utilizando Docker Compose, con un Microservicio de Catálogo (Python + PostgreSQL) y un Microservicio de Valoraciones (Node.js + MongoDB), orquestados por un API Gateway.
-# 🍲 Proyecto Microservicios de Recetas
-
-Este proyecto implementa una arquitectura de microservicios para un catálogo de recetas, utilizando Docker Compose para la orquestación, Node.js y Python como lenguajes de microservicios, y bases de datos PostgreSQL y MongoDB.
 
 ---
 
