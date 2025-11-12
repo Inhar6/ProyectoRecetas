@@ -3,3 +3,50 @@
 [![Estado de CI](https://github.com/Inhar6/ProyectoRecetas/actions/workflows/main.yml/badge.svg)](https://github.com/Inhar6/ProyectoRecetas/actions/workflows/main.yml)
 
 Este proyecto implementa una arquitectura de microservicios utilizando Docker Compose, con un Microservicio de Catálogo (Python + PostgreSQL) y un Microservicio de Valoraciones (Node.js + MongoDB), orquestados por un API Gateway.
+# 🍲 Proyecto Microservicios de Recetas
+
+Este proyecto implementa una arquitectura de microservicios para un catálogo de recetas, utilizando Docker Compose para la orquestación, Node.js y Python como lenguajes de microservicios, y bases de datos PostgreSQL y MongoDB.
+
+---
+
+## 0️⃣ Requisitos Previos (Software Necesario)
+
+Para arrancar el proyecto, solo necesitas instalar y configurar el siguiente software en tu sistema operativo:
+
+* ** Docker:** Motor de contenedores necesario para construir y ejecutar todos los microservicios y bases de datos.
+    * *Instalación:* Se recomienda instalar **Docker Desktop**.
+* ** Docker Compose:** Herramienta para definir y ejecutar aplicaciones multi-contenedor.
+    * *Nota:* Suele venir integrado con Docker Desktop.
+* **Git (Opcional):** Necesario si clonas el repositorio desde un servicio como GitHub/GitLab.
+
+---
+
+## 1️⃣ Arquitectura y Servicios
+
+El proyecto se compone de los siguientes contenedores interconectados, definidos en `docker-compose.yml`:
+
+| Servicio | Tipo | Puerto Externo | Descripción |
+| :--- | :--- | :--- | :--- |
+| `api-gateway` | Node.js (Express) | `8080` | Punto de entrada único. Sirve el Frontend y redirige las peticiones a los MS. |
+| `ms-catalogo-py` | Python (Flask) | `5000` | Microservicio de recetas. Maneja la lógica de negocio y la ingesta de datos. |
+| `ms-valoraciones-nodejs` | Node.js | `3000` | Microservicio de valoraciones. |
+| `ms-recetas-db` | PostgreSQL | `5432` | Base de datos relacional para el Catálogo de Recetas. |
+| `ms-valoraciones-db` | MongoDB | `27017` | Base de datos NoSQL para las Valoraciones. |
+
+---
+
+## 2️⃣ Dependencias Locales (¡No Requerido!)
+
+**¡Buena noticia!** Gracias al uso de **Docker**, no necesitas instalar manualmente ninguna dependencia de Node.js (`npm install`) o Python (`pip install`) en tu máquina local.
+
+* El **`Dockerfile`** de cada microservicio se encarga de instalar las dependencias necesarias (ej: `axios` para Node.js, `pandas` y `psycopg2` para Python) *dentro* de su respectivo contenedor durante la fase de construcción.
+
+---
+
+## 3️⃣ Proceso de Arranque Servidor
+
+Para construir, orquestar y arrancar todos los servicios en segundo plano, utiliza el siguiente comando en el directorio raíz del proyecto (donde se encuentra `docker-compose.yml`):
+
+```bash
+# Construye imágenes (solo si hay cambios de código) y arranca todos los servicios en modo 'detached' (-d)
+docker compose up --build -d
