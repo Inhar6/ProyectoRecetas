@@ -154,6 +154,25 @@ app.post('/api/v1/admin/cargar_datos', async (req, res) => {
     }
 });
 
+// --- ENDPOINT: CREAR RECETA (POST /api/v1/recetas) ---
+app.post('/api/v1/recetas', async (req, res) => {
+    try {
+        // Redirecciona la petición POST (con el cuerpo JSON en req.body) al Microservicio de Catálogo
+        // URL: http://ms-catalogo-py:5000/recetas
+        const response = await axios.post(
+            `${MS_CATALOGO_URL}/recetas`, 
+            req.body // Es CRÍTICO pasar req.body para enviar los datos de la receta
+        );
+        // Devuelve la respuesta del microservicio al cliente
+        res.status(response.status).json(response.data);
+    } catch (error) {
+        console.error("Error al redireccionar creación de receta:", error.message);
+        const status = error.response ? error.response.status : 500;
+        const message = error.response && error.response.data ? error.response.data : { message: "Error al intentar contactar al Microservicio de Catálogo para la creación." };
+        res.status(status).json(message);
+    }
+});
+
 
 // Ruta Catch-all para el Frontend (SPA)
 app.get(/.*/, (req, res) => {
