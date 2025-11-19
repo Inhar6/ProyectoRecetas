@@ -126,10 +126,13 @@ app.get('/api/v1/recetas/:id', async (req, res) => {
 });
 
 
-// --- ENDPOINT: Crear Valoración (POST /valoraciones) ---
+// --- ENDPOINT: Crear Valoración (POST /api/v1/valoraciones) ---
 app.post('/api/v1/valoraciones', async (req, res) => {
     try {
+        // Redirecciona la petición POST con el cuerpo JSON al MS de Valoraciones
         const response = await axios.post(`${MS_VALORACIONES_URL}/valoraciones`, req.body);
+        
+        // Devuelve la respuesta exitosa del MS
         res.status(response.status).json(response.data);
     } catch (error) {
         console.error("Error al redireccionar creación de valoración:", error.message);
@@ -150,6 +153,21 @@ app.get('/api/v1/recetas/:receta_id/valoraciones', async (req, res) => {
         // Manejamos el caso en que el microservicio esté caído o la petición falle
         const status = error.response ? error.response.status : 500;
         const message = error.response && error.response.data ? error.response.data : { message: "Error al intentar contactar al Microservicio de Valoraciones para obtener comentarios." };
+        res.status(status).json(message);
+    }
+});
+
+// --- ENDPOINT AÑADIDO: Obtener Media de Puntuación (GET /api/v1/valoraciones/:recetaId/media) ---
+app.get('/api/v1/valoraciones/:recetaId/media', async (req, res) => {
+    try {
+        const recetaId = req.params.recetaId;
+        // Redirige al MS-Valoraciones, que usa la URL /valoraciones/:recetaId/media
+        const response = await axios.get(`${MS_VALORACIONES_URL}/valoraciones/${recetaId}/media`);
+        res.status(response.status).json(response.data);
+    } catch (error) {
+        console.error("Error al redireccionar GET media de valoración (modal):", error.message);
+        const status = error.response ? error.response.status : 500;
+        const message = error.response && error.response.data ? error.response.data : { message: "Error al intentar contactar al Microservicio de Valoraciones para la media." };
         res.status(status).json(message);
     }
 });

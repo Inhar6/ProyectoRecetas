@@ -30,23 +30,25 @@ services:
       dockerfile: Dockerfile
     restart: always 
     environment:
-      # Usamos 'db-valoraciones' (el nombre del servicio que vamos a definir)
-      DATABASE_URL: mongodb://user_valoraciones:password_valoraciones@db-valoraciones:27017/valoraciones_db?authSource=admin
+      # ¡CRÍTICO CORREGIDO! Usamos las credenciales user_root:password_root
+      DATABASE_URL: mongodb://user_root:password_root@db-valoraciones:27017/valoraciones_db?authSource=admin
       PORT: 3000
     ports:
       - "3000:3000"
     depends_on:
-      - db-valoraciones # <--- La dependencia ahora apunta al servicio correcto
-
+      db-valoraciones:
+        condition: service_started
+        
   api-gateway:
-    build: 
+    build:
       context: ./api-gateway
       dockerfile: Dockerfile
     ports:
-      - "8080:8080" 
+      - "8080:8080"
     volumes:
-      - ./api-gateway:/app
+      # Mapeo corregido a la carpeta 'frontend' que está en la raíz
       - ./frontend:/app/frontend 
+      - ./api-gateway/server.js:/app/server.js # Asegura que el server.js del Gateway esté actualizado
     env_file:
       - ./api-gateway/.env
     command: sh -c "sleep 10 && node server.js"
@@ -59,7 +61,7 @@ services:
   # ------------------------------------
   # 2. BASES DE DATOS
   # ------------------------------------
-  ms-recetas-db: # Base de datos de Catálogo (PostgreSQL)
+  ms-recetas-db: # PostgreSQL
     image: postgres:14-alpine
     container_name: ms_recetas_db
     restart: always
@@ -77,22 +79,18 @@ services:
       timeout: 5s
       retries: 5
 
-  db-valoraciones: # Base de datos de Valoraciones (MongoDB)
-    image: mongo:6.0 # Usamos la versión 6.0 que tenías en el bloque anterior
+  db-valoraciones: # MongoDB
+    image: mongo:6.0
     container_name: db_valoraciones
     restart: always
     environment:
-      MONGO_INITDB_ROOT_USERNAME: user_valoraciones
-      MONGO_INITDB_ROOT_PASSWORD: password_valoraciones
-      MONGO_INITDB_DATABASE: valoraciones_db
+      MONGO_INITDB_ROOT_USERNAME: user_root # El usuario que SÍ existe
+      MONGO_INITDB_ROOT_PASSWORD: password_root # La contraseña que SÍ existe
     ports:
-      - "27018:27017"
+      - "27017:27017"
     volumes:
       - valoraciones_data:/data/db
 
-# ------------------------------------
-# 3. VOLUMENES
-# ------------------------------------
 volumes:
   recetas_data:
   valoraciones_data:

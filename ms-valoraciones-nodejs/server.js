@@ -3,6 +3,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
+// Carga las variables de entorno desde el .env.
 require('dotenv').config({ path: path.resolve(__dirname, './.env') }); 
 
 const app = express();
@@ -17,13 +18,18 @@ app.use(express.json());
 // ----------------------------------------------------
 
 if (!DATABASE_URL) {
-    console.error("FATAL ERROR: DATABASE_URL no está definida en el .env.");
+    console.error("FATAL ERROR: DATABASE_URL no está definida.");
     process.exit(1);
 }
 
+// Intentamos la conexión
 mongoose.connect(DATABASE_URL)
   .then(() => console.log('Conexión exitosa a MongoDB.'))
-  .catch(err => console.error('ERROR DE CONEXIÓN A MONGODB:', err));
+  .catch(err => {
+    // Si la conexión falla, imprimimos el error completo.
+    console.error('ERROR DE CONEXIÓN A MONGODB:', err);
+    process.exit(1);
+  });
 
 
 // ----------------------------------------------------
@@ -31,72 +37,77 @@ mongoose.connect(DATABASE_URL)
 // ----------------------------------------------------
 
 const valoracionSchema = new mongoose.Schema({
-    receta_id: { type: String, required: true, index: true }, // Indexado para búsquedas rápidas
+    receta_id: { type: String, required: true, index: true }, 
     puntuacion: { type: Number, required: true, min: 1, max: 5 },
     comentario: { type: String, required: false },
-    fecha: { type: Date, default: Date.now }
+    fecha: { type: Date, default: Date.now },
 });
 
-const Valoracion = mongoose.model('Valoracion', valoracionSchema);
-
+// Especificamos explícitamente el nombre de la colección: 'valoraciones'
+const Valoracion = mongoose.model('Valoracion', valoracionSchema, 'valoraciones');
 
 // ----------------------------------------------------
 // 3. ENDPOINTS
 // ----------------------------------------------------
 
-// Endpoint de Persistencia: Creación de Valoración (POST)
-app.post('/valoraciones/:recetaId', async (req, res) => {
+// Endpoint de Creación de Valoración (POST /valoraciones)
+app.post('/valoraciones', async (req, res) => {
     try {
-        const { puntuacion, comentario } = req.body;
-        const receta_id = req.params.recetaId;
-
-        if (!puntuacion || puntuacion < 1 || puntuacion > 5) {
-            return res.status(400).json({ message: "La puntuación debe ser un número entre 1 y 5." });
+        const { receta_id, puntuacion, comentario } = req.body;
+        
+        // Validación básica de campos requeridos
+        if (!receta_id || puntuacion === undefined || puntuacion === null) {
+            return res.status(400).json({ message: 'receta_id y puntuacion son campos requeridos.' });
         }
-
+        
+        // Creamos la instancia del modelo. Mongoose valida el tipo de dato.
         const nuevaValoracion = new Valoracion({
-            receta_id,
-            puntuacion,
-            comentario: comentario || ""
+            receta_id: receta_id.toString(),
+            puntuacion: parseInt(puntuacion),
+            comentario: comentario || '',
         });
-
+        
+        // Intentamos guardar en la base de datos
         await nuevaValoracion.save();
-        res.status(201).json({ message: "Valoración creada con éxito.", data: nuevaValoracion });
+        
+        // Respuesta exitosa
+        res.status(201).json(nuevaValoracion);
 
     } catch (error) {
-        console.error("Error al crear valoración:", error);
-        res.status(500).json({ message: "Error interno al guardar la valoración en MongoDB." });
+        // Logueamos el error EXACTO para el diagnóstico
+        console.error("ERROR CRÍTICO AL GUARDAR EN MONGODB:", error);
+        
+        // Si es un error de Mongoose por validación (ej. puntuacion > 5 o tipo incorrecto)
+        if (error.name === 'ValidationError') {
+            // Devolvemos 400 Bad Request
+            return res.status(400).json({ message: `Error de Validación: ${error.message}` });
+        }
+        
+        // Para cualquier otro error (ej. permisos de escritura fallidos, error de disco, etc.)
+        res.status(500).json({ message: "Error interno al intentar guardar. Verifique el log 'ERROR CRÍTICO AL GUARDAR EN MONGODB' en el contenedor." });
     }
 });
 
-// --- Endpoint: Obtener todas las valoraciones para una receta (GET) ---
+
+// Endpoint para obtener todas las valoraciones de una receta (GET /valoraciones/:recetaId)
 app.get('/valoraciones/:recetaId', async (req, res) => {
     try {
         const receta_id = req.params.recetaId;
-        
-        // Busca todas las valoraciones para el ID de receta dado, ordenadas por fecha descendente
-        const valoraciones = await Valoracion.find({ receta_id: receta_id })
-                                             .sort({ fecha: -1 });
-
-        // Devuelve el array de valoraciones
+        const valoraciones = await Valoracion.find({ receta_id }).sort({ fecha: -1 });
         res.json(valoraciones);
-
     } catch (error) {
         console.error("Error al obtener valoraciones:", error);
         res.status(500).json({ message: "Error interno al recuperar las valoraciones." });
     }
 });
 
-// Endpoint de Agregación: Obtener Media de Puntuación (GET)
+// Endpoint de Agregación: Obtener Media de Puntuación (GET /valoraciones/:recetaId/media)
 app.get('/valoraciones/:recetaId/media', async (req, res) => {
     try {
         const receta_id = req.params.recetaId;
 
-        // Lógica de Agregación de MongoDB: Calcula la media ($avg)
         const resultado = await Valoracion.aggregate([
-            // 1. Filtrar solo las valoraciones para esta receta
             { $match: { receta_id: receta_id } },
-            // 2. Agrupar todas las valoraciones restantes y calcular la media
             { $group: {
                 _id: null,
                 average_rating: { $avg: '$puntuacion' }
@@ -104,21 +115,22 @@ app.get('/valoraciones/:recetaId/media', async (req, res) => {
         ]);
 
         if (resultado.length > 0) {
-            // Si hay resultados, devuelve la media
             const average_rating = parseFloat(resultado[0].average_rating.toFixed(2));
             res.json({ receta_id, average_rating });
         } else {
-            // Si no hay valoraciones para esta receta, devuelve 0
             res.json({ receta_id, average_rating: 0 });
         }
 
     } catch (error) {
         console.error("Error en la agregación de media:", error);
-        res.status(500).json({ message: "Error en el cálculo de la media de valoración." });
+        res.status(500).json({ message: "Error interno al calcular la media de valoración." });
     }
 });
 
 
+// ----------------------------------------------------
+// 4. INICIO DEL SERVIDOR
+// ----------------------------------------------------
 app.listen(PORT, () => {
-    console.log(`MS Valoraciones corriendo en el puerto ${PORT}`);
+    console.log(`Microservicio de Valoraciones escuchando en puerto ${PORT}`);
 });
