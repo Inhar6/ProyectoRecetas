@@ -69,6 +69,23 @@ app.post('/valoraciones/:recetaId', async (req, res) => {
     }
 });
 
+// --- Endpoint: Obtener todas las valoraciones para una receta (GET) ---
+app.get('/valoraciones/:recetaId', async (req, res) => {
+    try {
+        const receta_id = req.params.recetaId;
+        
+        // Busca todas las valoraciones para el ID de receta dado, ordenadas por fecha descendente
+        const valoraciones = await Valoracion.find({ receta_id: receta_id })
+                                             .sort({ fecha: -1 });
+
+        // Devuelve el array de valoraciones
+        res.json(valoraciones);
+
+    } catch (error) {
+        console.error("Error al obtener valoraciones:", error);
+        res.status(500).json({ message: "Error interno al recuperar las valoraciones." });
+    }
+});
 
 // Endpoint de Agregación: Obtener Media de Puntuación (GET)
 app.get('/valoraciones/:recetaId/media', async (req, res) => {

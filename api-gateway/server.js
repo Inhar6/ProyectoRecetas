@@ -126,16 +126,30 @@ app.get('/api/v1/recetas/:id', async (req, res) => {
 });
 
 
-// --- ENDPOINT VALORACIONES: Crear Valoración (POST /valoraciones) ---
+// --- ENDPOINT: Crear Valoración (POST /valoraciones) ---
 app.post('/api/v1/valoraciones', async (req, res) => {
     try {
-        // Redirige la petición POST completa al microservicio de Valoraciones
         const response = await axios.post(`${MS_VALORACIONES_URL}/valoraciones`, req.body);
         res.status(response.status).json(response.data);
     } catch (error) {
         console.error("Error al redireccionar creación de valoración:", error.message);
         const status = error.response ? error.response.status : 500;
         const message = error.response && error.response.data ? error.response.data : { message: "Error al intentar contactar al Microservicio de Valoraciones." };
+        res.status(status).json(message);
+    }
+});
+
+// --- ENDPOINT: Obtener Valoraciones por Receta (GET /recetas/:id/valoraciones) ---
+app.get('/api/v1/recetas/:receta_id/valoraciones', async (req, res) => {
+    const recetaId = req.params.receta_id;
+    try {
+        // Redirige la petición al microservicio de valoraciones, usando el ID en la URL
+        const response = await axios.get(`${MS_VALORACIONES_URL}/valoraciones/${recetaId}`);
+        res.status(response.status).json(response.data);
+    } catch (error) {
+        // Manejamos el caso en que el microservicio esté caído o la petición falle
+        const status = error.response ? error.response.status : 500;
+        const message = error.response && error.response.data ? error.response.data : { message: "Error al intentar contactar al Microservicio de Valoraciones para obtener comentarios." };
         res.status(status).json(message);
     }
 });

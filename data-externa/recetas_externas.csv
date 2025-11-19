@@ -2,3 +2,15 @@ receta_id,titulo,ingredientes,pasos
 REC001,Paella de Marisco,Arroz,Marisco,Cocer arroz con marisco.
 REC002,Tortilla Española,Huevo,Patata,Freír patatas y mezclar con huevo.
 REC003,Gazpacho Andaluz,Tomate,Pepino,Triturar todos los ingredientes.
+REC004,Lentejas Estofadas,Lentejas,Chorizo,Cocer las lentejas con verduras y chorizo.
+REC005,Pinchos Morunos,Cerdo,Pimentón,Marinar el cerdo en pimentón y asar en brochetas.
+REC006,Pollo al Chilindrón,Pollo,Pimientos,Guisar el pollo con pimientos rojos y cebolla.
+REC007,Crema de Calabaza,Calabaza,Nata,Hervir la calabaza y triturar con nata.
+REC008,Sopa de Ajo,Pan,Ajo,Freír el ajo en aceite y añadir el pan y caldo.
+REC009,Fideuá de Gandía,Fideos,Marisco,Cocer los fideos en caldo de pescado con marisco.
+REC010,Papas Arrugadas,Patatas,Sal,Hervir las patatas con mucha sal hasta que se arruguen.
+REC011,Bacalao a la Vizcaína,Bacalao,Pimientos Choriceros,Cocinar el bacalao con salsa de pimientos choriceros.
+REC012,Tarta de Santiago,Almendras,Huevo,Mezclar almendras molidas con azúcar y huevo y hornear.
+REC013,Marmitako,Bonito,Patatas,Guisar el bonito y las patatas en una cazuela.
+REC014,Churros con Chocolate,Harina,Chocolate,Freír la masa de harina y servir con chocolate caliente.
+REC015,Tiramisú,Mascarpone,Café,Alternar capas de bizcochos mojados en café con crema de mascarpone.

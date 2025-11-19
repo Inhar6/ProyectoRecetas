@@ -15,34 +15,28 @@ services:
       - ./data-externa:/app/data-externa
     env_file:
       - ./ms-catalogo-py/.env
-      
-    # === DEPENDENCY AJUSTE CRÍTICO ===
-    # El Catálogo espera a que la BBDD esté lista (service_healthy).
     depends_on:
       ms-recetas-db:
-        condition: service_healthy # Espera el healthcheck de PostgreSQL
-        
-    # === HEALTHCHECK DEL CATÁLOGO (Ajustado) ===
-    # Permite a Docker saber cuándo la aplicación Flask está realmente lista.
+        condition: service_healthy 
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/recetas"] 
       interval: 15s 
       timeout: 10s 
-      retries: 8 # Mantenemos los reintentos altos por seguridad
-    # ==========================================
+      retries: 8 
 
   ms-valoraciones-nodejs:
-    build: 
-      context: ./ms-valoraciones-nodejs
+    build:
+      context: ./ms-valoraciones-nodejs 
       dockerfile: Dockerfile
+    restart: always 
+    environment:
+      # Usamos 'db-valoraciones' (el nombre del servicio que vamos a definir)
+      DATABASE_URL: mongodb://user_valoraciones:password_valoraciones@db-valoraciones:27017/valoraciones_db?authSource=admin
+      PORT: 3000
     ports:
       - "3000:3000"
-    volumes:
-      - ./ms-valoraciones-nodejs:/app
-    env_file:
-      - ./ms-valoraciones-nodejs/.env
     depends_on:
-      - ms-valoraciones-db
+      - db-valoraciones # <--- La dependencia ahora apunta al servicio correcto
 
   api-gateway:
     build: 
@@ -55,10 +49,7 @@ services:
       - ./frontend:/app/frontend 
     env_file:
       - ./api-gateway/.env
-    
     command: sh -c "sleep 10 && node server.js"
-
-    # El Gateway espera a que el Catálogo esté COMPLETO y SANO
     depends_on:
       ms-catalogo-py:
         condition: service_healthy 
@@ -68,7 +59,7 @@ services:
   # ------------------------------------
   # 2. BASES DE DATOS
   # ------------------------------------
-  ms-recetas-db:
+  ms-recetas-db: # Base de datos de Catálogo (PostgreSQL)
     image: postgres:14-alpine
     container_name: ms_recetas_db
     restart: always
@@ -80,25 +71,22 @@ services:
       - "5432:5432" 
     volumes:
       - recetas_data:/var/lib/postgresql/data
-      
-    # === NUEVO HEALTHCHECK PARA POSTGRESQL ===
-    # Espera a que la BBDD pueda aceptar comandos SQL.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 5
-    # =======================================
 
-  ms-valoraciones-db:
-    image: mongo:6.0
-    container_name: ms_valoraciones_db
+  db-valoraciones: # Base de datos de Valoraciones (MongoDB)
+    image: mongo:6.0 # Usamos la versión 6.0 que tenías en el bloque anterior
+    container_name: db_valoraciones
     restart: always
     environment:
       MONGO_INITDB_ROOT_USERNAME: user_valoraciones
       MONGO_INITDB_ROOT_PASSWORD: password_valoraciones
+      MONGO_INITDB_DATABASE: valoraciones_db
     ports:
-      - "27017:27017"
+      - "27018:27017"
     volumes:
       - valoraciones_data:/data/db
 
