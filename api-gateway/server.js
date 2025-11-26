@@ -87,10 +87,11 @@ app.get('/api/v1/recetas', async (req, res) => {
 app.get('/api/v1/recetas/:id', async (req, res) => {
     try {
         const { id } = req.params;
+
         // 1. Obtener Receta (Catálogo)
         const recetaResponse = await axios.get(`${MS_CATALOGO_URL}/recetas/${id}`);
         let receta = recetaResponse.data;
-        
+
         // 2. Obtener Valoraciones (Valoraciones) - Envuelto en try/catch
         try {
             const valoracionResponse = await axios.get(`${MS_VALORACIONES_URL}/valoraciones/promedio/${id}`);
@@ -102,62 +103,57 @@ app.get('/api/v1/recetas/:id', async (req, res) => {
             };
         } catch (valoracionesError) {
             console.error(`ADVERTENCIA: No se pudo obtener la valoración para ${id}.`, valoracionesError.message);
-            receta = {
-                ...receta,
-                promedio: 0,
-                total_votos: 0
-            };
+            receta = { ...receta, promedio: 0, total_votos: 0 };
         }
 
         // 3. Saneamiento de Datos
         // Aseguramos que los campos clave sean siempre cadenas de texto
         receta.nombre = receta.nombre || '';
         receta.categoria = receta.categoria || '';
-        receta.ingredientes = receta.ingredientes || '';
-        receta.instrucciones = receta.instrucciones || '';
+        receta.ingredientes = receta.ingredientes || ''; // Esto ya es un array en la BD de Catálogo, pero lo mantenemos por seguridad.
+
 
         res.status(200).json(receta);
+
     } catch (error) {
-        console.error("Error al obtener detalle de receta:", error.message);
+        console.error("Error al redireccionar detalle de receta:", error.message);
         const status = error.response ? error.response.status : 500;
-        const message = error.response && error.response.data ? error.response.data : { message: "No se pudo contactar al Microservicio de Catálogo o la receta no existe." };
+        const message = error.response && error.response.data ? error.response.data : { message: "Error al intentar contactar al Microservicio de Catálogo." };
         res.status(status).json(message);
     }
 });
 
-
-// --- ENDPOINT: Crear Valoración (POST /api/v1/valoraciones) ---
-app.post('/api/v1/valoraciones', async (req, res) => {
+// --- ENDPOINT INGESTA: Cargar datos iniciales (POST /api/v1/admin/cargar_datos) ---
+app.post('/api/v1/admin/cargar_datos', async (req, res) => {
     try {
-        // Redirecciona la petición POST con el cuerpo JSON al MS de Valoraciones
-        const response = await axios.post(`${MS_VALORACIONES_URL}/valoraciones`, req.body);
-        
-        // Devuelve la respuesta exitosa del MS
+        // Redirecciona la petición POST al Microservicio de Catálogo para iniciar la ingesta
+        const response = await axios.post(`${MS_CATALOGO_URL}/admin/cargar_datos`);
         res.status(response.status).json(response.data);
     } catch (error) {
-        console.error("Error al redireccionar creación de valoración:", error.message);
+        console.error("Error al redireccionar ingesta de datos:", error.message);
         const status = error.response ? error.response.status : 500;
-        const message = error.response && error.response.data ? error.response.data : { message: "Error al intentar contactar al Microservicio de Valoraciones." };
+        const message = error.response && error.response.data ? error.response.data : { message: "Error al intentar contactar al Microservicio de Catálogo para la ingesta." };
         res.status(status).json(message);
     }
 });
 
-// --- ENDPOINT: Obtener Valoraciones por Receta (GET /recetas/:id/valoraciones) ---
-app.get('/api/v1/recetas/:receta_id/valoraciones', async (req, res) => {
-    const recetaId = req.params.receta_id;
+
+// --- ENDPOINT: Obtener lista de Valoraciones (GET /api/v1/valoraciones/:recetaId) ---
+app.get('/api/v1/valoraciones/:recetaId', async (req, res) => {
     try {
-        // Redirige la petición al microservicio de valoraciones, usando el ID en la URL
+        const recetaId = req.params.recetaId;
+        // Redirige al MS-Valoraciones para obtener la lista de comentarios
         const response = await axios.get(`${MS_VALORACIONES_URL}/valoraciones/${recetaId}`);
         res.status(response.status).json(response.data);
     } catch (error) {
-        // Manejamos el caso en que el microservicio esté caído o la petición falle
+        console.error("Error al redireccionar obtención de valoraciones:", error.message);
         const status = error.response ? error.response.status : 500;
         const message = error.response && error.response.data ? error.response.data : { message: "Error al intentar contactar al Microservicio de Valoraciones para obtener comentarios." };
         res.status(status).json(message);
     }
 });
 
-// --- ENDPOINT AÑADIDO: Obtener Media de Puntuación (GET /api/v1/valoraciones/:recetaId/media) ---
+// --- ENDPOINT: Obtener Media de Puntuación (GET /api/v1/valoraciones/:recetaId/media) ---
 app.get('/api/v1/valoraciones/:recetaId/media', async (req, res) => {
     try {
         const recetaId = req.params.recetaId;
@@ -165,26 +161,35 @@ app.get('/api/v1/valoraciones/:recetaId/media', async (req, res) => {
         const response = await axios.get(`${MS_VALORACIONES_URL}/valoraciones/${recetaId}/media`);
         res.status(response.status).json(response.data);
     } catch (error) {
-        console.error("Error al redireccionar GET media de valoración (modal):", error.message);
+        console.error("Error al redireccionar obtención de media de valoración:", error.message);
         const status = error.response ? error.response.status : 500;
-        const message = error.response && error.response.data ? error.response.data : { message: "Error al intentar contactar al Microservicio de Valoraciones para la media." };
+        const message = error.response && error.response.data ? error.response.data : { message: "Error al intentar contactar al Microservicio de Valoraciones para obtener la media." };
         res.status(status).json(message);
     }
 });
 
 
-// --- ENDPOINT ADMIN: Cargar Datos (POST /admin/cargar_datos) ---
-app.post('/api/v1/admin/cargar_datos', async (req, res) => {
+// 🌟 CRÍTICO: ENDPOINT AÑADIDO PARA LA CREACIÓN DE VALORACIONES (FIX) 🌟
+// --- ENDPOINT: CREAR VALORACIÓN (POST /api/v1/valoraciones) ---
+app.post('/api/v1/valoraciones', async (req, res) => {
     try {
-        const response = await axios.post(`${MS_CATALOGO_URL}/admin/cargar_datos`);
+        // Redirecciona la petición POST (con el cuerpo JSON en req.body) al Microservicio de Valoraciones
+        // URL: http://ms-valoraciones-nodejs:3000/valoraciones
+        const response = await axios.post(
+            `${MS_VALORACIONES_URL}/valoraciones`, 
+            req.body // CRÍTICO: Se pasa el cuerpo (body) de la petición
+        );
+        // Devuelve la respuesta del microservicio al cliente
         res.status(response.status).json(response.data);
     } catch (error) {
-        console.error("Error al redireccionar carga de datos:", error.message);
+        console.error("Error al redireccionar creación de valoración:", error.message);
         const status = error.response ? error.response.status : 500;
-        const message = error.response && error.response.data ? error.response.data : { message: "Error al intentar contactar al Microservicio de Catálogo para la ingesta." };
+        const message = error.response && error.response.data ? error.response.data : { message: "Error al intentar contactar al Microservicio de Valoraciones para la creación." };
         res.status(status).json(message);
     }
 });
+// 🌟 FIN DEL FIX 🌟
+
 
 // --- ENDPOINT: CREAR RECETA (POST /api/v1/recetas) ---
 app.post('/api/v1/recetas', async (req, res) => {
@@ -215,7 +220,6 @@ app.get(/.*/, (req, res) => {
 // ----------------------------------------------------------------------------------
 // --- INICIO DEL SERVIDOR ---
 // ----------------------------------------------------------------------------------
-
 app.listen(GATEWAY_PORT, () => {
-    console.log(`API Gateway corriendo en puerto ${GATEWAY_PORT}`);
+    console.log(`API Gateway escuchando en puerto ${GATEWAY_PORT}`);
 });

@@ -357,7 +357,7 @@ async function handleRatingSubmit(e) {
         if (response.ok) {
             statusElement.textContent = `✅ Valoración de ${ratingData.puntuacion}/5 enviada con éxito.`;
             form.reset();
-            
+            form.querySelector('button[type="submit"]').disabled = false;
             // 2. Recargar el modal para mostrar la nueva valoración y media actualizada
             // Usamos setTimeout para dar tiempo a que el servicio de valoraciones termine de guardar.
             
