@@ -20,6 +20,7 @@ const modalDificultad = document.getElementById('modal-dificultad');
 const modalDescription = document.getElementById('modal-description');
 const modalIngredientes = document.getElementById('modal-ingredientes');
 const modalAvgRating = document.getElementById('modal-avg-rating'); // Nuevo elemento
+const modalImagen = document.getElementById('modal-imagen'); 
 
 // Elementos del DOM para el Formulario de Creación
 const creationFormContainer = document.getElementById('creation-form-container'); // Referencia corregida
@@ -30,28 +31,37 @@ const toggleIcon = document.getElementById('toggle-icon');
 // -----------------------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Cargar todas las recetas al inicio
+    // 1. Cargar recetas
     loadRecetas();
     
-    // 2. Asigna evento de submit al formulario de valoración
-    document.getElementById('rating-form').addEventListener('submit', handleRatingSubmit);
+    // 2. Eventos con comprobación de existencia (Seguridad total)
+    const ratingForm = document.getElementById('rating-form');
+    if (ratingForm) ratingForm.addEventListener('submit', handleRatingSubmit);
     
-    // 3. Asigna evento al input de búsqueda (filtrado en tiempo real)
-    searchInput.addEventListener('input', filterRecetas);
+    if (searchInput) searchInput.addEventListener('input', filterRecetas);
 
-    // 4. Asigna evento al botón de carga de datos
-    loadDataButton.addEventListener('click', handleDataIngestion);
+    if (loadDataButton) loadDataButton.addEventListener('click', handleDataIngestion);
 
-    // 5. Asigna eventos para el formulario de creación
-    document.getElementById('toggle-creation-form').addEventListener('click', toggleCreationForm);
-    document.getElementById('create-recipe-form').addEventListener('submit', handleRecipeCreation);
+    // 5. PANEL DE CREACIÓN (Lo que no te abría)
+    const btnToggle = document.getElementById('toggle-form-btn');
+    if (btnToggle) {
+        btnToggle.addEventListener('click', toggleCreationForm);
+    }
 
-    // 6. Asigna eventos para cerrar el modal
-    modalCloseBtn.addEventListener('click', closeModal);
+    const recipeForm = document.getElementById('recipe-form');
+    if (recipeForm) {
+        recipeForm.addEventListener('submit', handleRecipeCreation);
+    }
+
+    // 6. CERRAR MODAL (Lo que no te cerraba)
+    // Buscamos por ID que es más seguro que por clase
+    const closeBtn = document.getElementById('close-modal') || document.querySelector('.close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeModal);
+    }
+
     window.addEventListener('click', (event) => {
-        if (event.target === modal) {
-            closeModal();
-        }
+        if (event.target === modal) closeModal();
     });
 });
 
@@ -93,22 +103,28 @@ function renderRecetas(recetas) {
     }
 
     recetas.forEach(receta => {
-        // Formatea los ingredientes para mostrar solo los 3 primeros si hay muchos
         const ingredientesTexto = Array.isArray(receta.ingredientes) 
             ? receta.ingredientes.slice(0, 3).join(', ') + (receta.ingredientes.length > 3 ? '...' : '')
             : 'N/A';
-            
+
+        // NUEVO: Definir imagen o usar una por defecto
+        const imagenUrl = receta.imagen_url ? receta.imagen_url : 'https://images.unsplash.com/photo-1495195129352-aec325a55b65?q=80&w=400&auto=format&fit=crop';   
         const card = document.createElement('div');
-        card.className = 'bg-white p-6 border border-gray-200 rounded-xl shadow-lg hover:shadow-xl transition duration-300 cursor-pointer';
+        // Añadimos overflow-hidden para que la imagen no se salga de los bordes redondeados
+        card.className = 'bg-white border border-gray-200 rounded-xl shadow-lg hover:shadow-xl transition duration-300 cursor-pointer overflow-hidden';
+        
         card.innerHTML = `
-            <h2 class="text-2xl font-bold text-indigo-600 mb-2">${receta.titulo}</h2>
-            <p class="text-gray-700 mb-3 line-clamp-2">${receta.descripcion}</p>
-            <p class="text-sm text-gray-500 mb-2"><span class="font-semibold">Tiempo:</span> ${receta.tiempo_preparacion} min</p>
-            <p class="text-sm text-gray-500 mb-4"><span class="font-semibold">Ingredientes clave:</span> ${ingredientesTexto}</p>
-            <button class="view-details-btn bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium py-1 px-3 rounded-lg transition duration-200" 
-                    data-id="${receta.id}">Ver Detalle y Valorar</button>
+            <img src="${imagenUrl}" alt="${receta.titulo}" class="w-full h-48 object-cover border-b border-gray-100">
+            
+            <div class="p-6"> <h2 class="text-2xl font-bold text-indigo-600 mb-2">${receta.titulo}</h2>
+                <p class="text-gray-700 mb-3 line-clamp-2">${receta.descripcion}</p>
+                <p class="text-sm text-gray-500 mb-2"><span class="font-semibold">Tiempo:</span> ${receta.tiempo_preparacion} min</p>
+                <p class="text-sm text-gray-500 mb-4"><span class="font-semibold">Ingredientes clave:</span> ${ingredientesTexto}</p>
+                <button class="view-details-btn bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium py-1 px-3 rounded-lg transition duration-200" 
+                        data-id="${receta.id}">Ver Detalle y Valorar</button>
+            </div>
         `;
-        // Asigna el evento click al botón de ver detalle
+        // El resto del código del botón se queda igual
         card.querySelector('.view-details-btn').addEventListener('click', () => {
             openModal(receta.id);
         });
@@ -271,6 +287,9 @@ async function openModal(recetaId) {
             modalTiempo.textContent = `${data.tiempo_preparacion} min`;
             modalDificultad.textContent = data.dificultad;
             modalDescription.textContent = data.descripcion;
+            if (modalImagen) {
+                modalImagen.src = data.imagen_url ? data.imagen_url : 'https://images.unsplash.com/photo-1495195129352-aec325a55b65?q=80&w=400';
+            }
             
             // Rellenar lista de ingredientes
             modalIngredientes.innerHTML = '';
@@ -417,19 +436,18 @@ async function handleDataIngestion() {
  * Alterna la visibilidad del formulario de creación de recetas.
  */
 function toggleCreationForm() {
-    if (!creationFormContainer) {
-        console.error("Error: El contenedor 'creation-form-container' no fue encontrado en el DOM.");
-        return;
-    }
+    // Buscamos los elementos en el momento del clic para evitar errores de carga
+    const container = document.getElementById('creation-form-container');
+    const icon = document.getElementById('toggle-icon');
 
-    const isHidden = creationFormContainer.classList.contains('hidden');
-    
-    if (isHidden) {
-        creationFormContainer.classList.remove('hidden');
-        toggleIcon.classList.add('rotate-180');
+    if (container) {
+        container.classList.toggle('hidden');
+        if (icon) {
+            // Si está oculto (tiene la clase hidden), ponemos +
+            icon.textContent = container.classList.contains('hidden') ? '+' : '-';
+        }
     } else {
-        creationFormContainer.classList.add('hidden');
-        toggleIcon.classList.remove('rotate-180');
+        console.error("No se encontró el contenedor del formulario");
     }
 }
 
@@ -470,8 +488,8 @@ async function handleRecipeCreation(e) {
         if (response.ok) {
             statusElement.textContent = `✅ Receta "${result.titulo}" creada con éxito.`;
             form.reset();
-            
-            // Recargar la lista de recetas para mostrar la nueva
+            // Recargar la lista de recetas para incluir la nueva
+            // Usamos setTimeout para dar tiempo a que el servicio de catálogo termine de guardar.
             setTimeout(() => {
                 loadRecetas(); 
             }, 1000); 
@@ -479,7 +497,6 @@ async function handleRecipeCreation(e) {
         } else {
             statusElement.textContent = `❌ Error: ${result.message || 'Fallo en la API.'}`;
         }
-
     } catch (error) {
         statusElement.textContent = `❌ Error de red: No se pudo contactar al Microservicio de Catálogo.`;
         console.error('Error de red al crear receta:', error);

@@ -40,13 +40,13 @@ db = SQLAlchemy(app)
 class Receta(db.Model):
     """Define la tabla de Recetas."""
     __tablename__ = 'recetas' 
-    id = db.Column(db.Integer, primary_key=True) # Clave primaria
+    id = db.Column(db.Integer, primary_key=True)
     titulo = db.Column(db.String(255), nullable=False)
     descripcion = db.Column(db.Text, nullable=False)
     tiempo_preparacion = db.Column(db.Integer, nullable=False)
     dificultad = db.Column(db.String(50), nullable=False)
-    # Almacenamos la lista de ingredientes como una cadena JSON en la BBDD
     ingredientes = db.Column(db.Text, nullable=False) 
+    imagen_url = db.Column(db.String(500), nullable=True) # <--- NUEVA COLUMNA
     fecha_creacion = db.Column(db.DateTime, server_default=db.func.now())
 
 # ----------------------------------------------------
@@ -75,46 +75,41 @@ def serialize_receta(receta):
 
 
 def cargar_datos_csv():
-    """Carga los datos del CSV a la base de datos, mapeando las columnas faltantes."""
     if not os.path.exists(DATA_EXTERNA_PATH):
-        print(f"ADVERTENCIA: Archivo CSV no encontrado en {DATA_EXTERNA_PATH}. Omitiendo carga.")
+        print(f"ADVERTENCIA: Archivo CSV no encontrado.")
         return 0
 
     try:
         df = pd.read_csv(DATA_EXTERNA_PATH)
         
-        # --- Normalización de columnas: Simplificamos para adaptarnos a tu CSV ---
-        # Aseguramos que 'titulo' e 'ingredientes' funcionen
+        # 1. Normalización de columnas
         def normalize_column_name(s):
-            import unicodedata # Importamos aquí por si acaso
             normalized = unicodedata.normalize('NFD', str(s))
-            ascii_only = normalized.encode('ascii', 'ignore').decode('utf-8')
-            return ascii_only.lower().replace(' ', '_').replace('-', '_').strip()
-
+            return normalized.encode('ascii', 'ignore').decode('utf-8').lower().strip()
         df.columns = [normalize_column_name(col) for col in df.columns]
-        # ------------------------------------------------------------------
         
-        count = 0
-        db.session.query(Receta).delete()
+        # --- SOLUCIÓN PARA EL ERROR DE TABLA NO ENCONTRADA ---
+        # Obtenemos el nombre exacto de la tabla desde el modelo Receta
+        nombre_tabla = Receta.__table__.name 
         
-        for index, row in df.iterrows():
-            # Serializamos la lista de ingredientes
-            try:
-                ingredientes_data = json.loads(row.get('ingredientes', '[]').replace("'", "\""))
-            except Exception:
-                ingredientes_data = [row.get('ingredientes', '')]
-                
-            ingredientes_json = json.dumps(ingredientes_data)
+        # Ejecutamos el TRUNCATE usando el nombre real (entre comillas dobles por seguridad)
+        db.session.execute(text(f'TRUNCATE TABLE "{nombre_tabla}" RESTART IDENTITY CASCADE;'))
+        db.session.commit()
+        # ---------------------------------------------------
 
-            # *** CORRECCIÓN CLAVE: Mapear y usar valores por defecto ***
+        count = 0
+        for index, row in df.iterrows():
+            # Procesar ingredientes como lista (sin json.dumps)
+            raw_ing = str(row.get('ingredientes', ''))
+            lista_ingredientes = [i.strip() for i in raw_ing.split(';') if i]
+
             nueva_receta = Receta(
-                titulo=row['titulo'],
-                # Usamos la columna 'pasos' del CSV como la 'descripcion'
-                descripcion=row.get('pasos', 'Descripción no disponible en el CSV.'),
-                # Valores por defecto para las columnas que faltan
-                tiempo_preparacion=15, 
-                dificultad='Fácil', 
-                ingredientes=ingredientes_json
+                titulo=row.get('titulo', 'Sin título'),
+                descripcion=row.get('descripcion', 'Sin descripción'),
+                tiempo_preparacion=int(row.get('tiempo_preparacion', 0)),
+                dificultad=row.get('dificultad', 'Media'),
+                ingredientes=lista_ingredientes, 
+                imagen_url=row.get('imagen_url')
             )
             
             db.session.add(nueva_receta)
@@ -122,10 +117,10 @@ def cargar_datos_csv():
             
         db.session.commit()
         return count
+    
     except Exception as e:
         db.session.rollback()
-        # Mostramos la excepción para el diagnóstico
-        print(f"ERROR: Falló la carga de datos CSV: {e}", file=sys.stderr)
+        print(f"ERROR CSV: {e}")
         raise e
     
 # ----------------------------------------------------
@@ -136,52 +131,27 @@ def cargar_datos_csv():
 @app.route('/recetas', methods=['POST'])
 def create_receta():
     data = request.json
-    
-    # 1. Validación de Datos Mínima
+    # Añadimos 'imagen_url' como opcional en la validación si quieres
     required_fields = ['titulo', 'descripcion', 'tiempo_preparacion', 'dificultad', 'ingredientes']
+    
     if not data or not all(field in data for field in required_fields):
-        return jsonify({
-            "message": "Faltan campos requeridos: titulo, descripcion, tiempo_preparacion, dificultad, ingredientes."
-        }), 400
-
-    # Validación específica de tipos
-    if not isinstance(data.get('ingredientes'), list):
-        return jsonify({"message": "El campo 'ingredientes' debe ser una lista de strings."}), 400
-    try:
-        tiempo = int(data['tiempo_preparacion'])
-        if tiempo <= 0:
-            raise ValueError
-    except (ValueError, TypeError):
-        return jsonify({"message": "El campo 'tiempo_preparacion' debe ser un número entero positivo."}), 400
+        return jsonify({"message": "Faltan campos requeridos."}), 400
 
     try:
-        # 2. Serializar Ingredientes a string JSON para la base de datos
-        ingredientes_json = json.dumps(data['ingredientes'])
-        
-        # 3. Creación del nuevo objeto Receta
         nueva_receta = Receta(
             titulo=data['titulo'],
             descripcion=data['descripcion'],
-            tiempo_preparacion=tiempo,
+            tiempo_preparacion=int(data['tiempo_preparacion']),
             dificultad=data['dificultad'],
-            ingredientes=ingredientes_json
+            ingredientes=json.dumps(data['ingredientes']),
+            imagen_url=data.get('imagen_url') # Captura la URL si existe
         )
-
-        # 4. Guardar en la Base de Datos
         db.session.add(nueva_receta)
         db.session.commit()
-        
-        # 5. Respuesta de Éxito
-        return jsonify(serialize_receta(nueva_receta)), 201 # 201 Created
-
+        return jsonify(serialize_receta(nueva_receta)), 201
     except Exception as e:
         db.session.rollback()
-        # 6. Manejo de Errores de BD
-        print(f"Error al crear receta: {e}", file=sys.stderr)
-        return jsonify({
-            "message": "Error interno del servidor al procesar la receta."
-        }), 500
-
+        return jsonify({"message": "Error interno."}), 500
 
 # --- ENDPOINT: OBTENER TODAS LAS RECETAS (GET /recetas) ---
 @app.route('/recetas', methods=['GET'])

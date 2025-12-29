@@ -8,6 +8,7 @@
     <style>
         /* Estilos base para el scroll y fuente Inter */
         body { font-family: 'Inter', sans-serif; background-color: #f7f9fc; }
+        
         /* --- ESTILOS PARA EL MODAL DE DETALLE Y VALORACIÓN --- */
         .modal {
             display: none; 
@@ -23,172 +24,174 @@
         }
         .modal-content {
             background-color: #fefefe;
-            margin: 5% auto; /* Ajustado para mejor centrado vertical */
+            margin: 5% auto;
             padding: 30px;
             border-radius: 12px;
             width: 90%; 
-            max-width: 700px;
+            max-width: 800px; /* Aumentado un poco para la imagen */
             box-shadow: 0 10px 25px rgba(0,0,0,0.2);
             position: relative;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateY(-10%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
         }
         .close {
             color: #aaa;
-            float: right;
+            position: absolute;
+            top: 15px;
+            right: 20px;
             font-size: 28px;
             font-weight: bold;
-        }
-        .close:hover,
-        .close:focus {
-            color: #000;
-            text-decoration: none;
-            cursor: pointer;
-        }
-        /* Estilos para las estrellas de puntuación */
-        .rating-input input[type="radio"] {
-            display: none;
-        }
-        .rating-input label {
-            font-size: 30px;
-            color: #ccc;
             cursor: pointer;
             transition: color 0.2s;
         }
-        .rating-input label:hover,
-        .rating-input label:hover ~ label,
-        .rating-input input[type="radio"]:checked ~ label {
-            color: #ffc107;
-        }
-        .rating-input {
-            direction: rtl; /* Para que la primera estrella sea la de 5 */
-        }
-        .rating-input label {
-            display: inline-block;
-        }
+        .close:hover { color: #333; }
     </style>
 </head>
-<body class="p-6">
+<body class="p-4 md:p-8">
 
-    <div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-2xl">
-        <h1 class="text-4xl font-extrabold text-indigo-700 mb-6 border-b pb-2">Microservicios: Recetas App</h1>
-        
-        <div class="mb-8 p-4 bg-gray-50 rounded-lg shadow-inner">
-            <h2 class="text-2xl font-semibold text-gray-700 mb-3">Administración</h2>
-            
-            <div class="flex items-center space-x-4 mb-4">
-                <button id="load-data-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
-                    Cargar Datos Iniciales (PostgreSQL)
-                </button>
-                <p id="ingesta-status" class="text-sm font-medium text-gray-600"></p>
+    <div class="max-w-6xl mx-auto">
+        <header class="text-center mb-10">
+            <h1 class="text-5xl font-extrabold text-indigo-700 mb-2">Recetas Gourmet</h1>
+            <p class="text-gray-600 text-lg">Explora, crea y valora las mejores recetas del mundo.</p>
+        </header>
+
+        <div class="bg-white p-6 rounded-2xl shadow-md mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="relative w-full md:w-1/2">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </span>
+                <input type="text" id="search-input" placeholder="Buscar por título o ingrediente..." 
+                       class="pl-10 block w-full rounded-xl border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-3 border border-gray-200">
             </div>
             
-            <button id="toggle-creation-form" class="text-indigo-600 hover:text-indigo-800 font-medium flex items-center">
-                <svg id="toggle-icon" class="w-5 h-5 mr-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                Crear Nueva Receta
+            <div class="flex gap-3 w-full md:w-auto">
+                <button id="load-data-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl transition duration-200 shadow-lg flex-1 md:flex-none">
+                    🔄 Cargar CSV
+                </button>
+            </div>
+        </div>
+
+        <p id="ingesta-status" class="text-center mb-6 text-sm font-medium text-indigo-600"></p>
+
+        <div class="mb-10">
+            <button id="toggle-form-btn" class="w-full flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:bg-gray-50 transition">
+                <span class="text-xl font-semibold text-gray-800">Añadir Nueva Receta</span>
+                <span id="toggle-icon" class="text-2xl text-indigo-500">+</span>
             </button>
             
-            <div id="creation-form-container" class="mt-4 p-4 border border-indigo-200 rounded-lg hidden">
-                <form id="create-recipe-form" class="space-y-4">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-3">Detalles de la Receta</h3>
-                    
+            <div id="creation-form-container" class="hidden mt-4 bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
+                <form id="recipe-form" class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="titulo" class="block text-sm font-medium text-gray-700">Título</label>
-                        <input type="text" id="titulo" name="titulo" required
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                        <label class="block text-sm font-medium text-gray-700">Título de la Receta</label>
+                        <input type="text" name="titulo" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
                     </div>
                     <div>
-                        <label for="descripcion" class="block text-sm font-medium text-gray-700">Descripción</label>
-                        <textarea id="descripcion" name="descripcion" required
-                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border"></textarea>
+                        <label class="block text-sm font-medium text-gray-700">Tiempo (minutos)</label>
+                        <input type="number" name="tiempo_preparacion" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
                     </div>
-                    
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label for="tiempo_preparacion" class="block text-sm font-medium text-gray-700">Tiempo (minutos)</label>
-                            <input type="number" id="tiempo_preparacion" name="tiempo_preparacion" required min="1"
-                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
-                        </div>
-                        <div>
-                            <label for="dificultad" class="block text-sm font-medium text-gray-700">Dificultad</label>
-                            <select id="dificultad" name="dificultad" required
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
-                                <option value="Fácil">Fácil</option>
-                                <option value="Media">Media</option>
-                                <option value="Difícil">Difícil</option>
-                            </select>
-                        </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700">Descripción</label>
+                        <textarea name="descripcion" rows="2" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Dificultad</label>
+                        <select name="dificultad" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                            <option value="Fácil">Fácil</option>
+                            <option value="Media">Media</option>
+                            <option value="Difícil">Difícil</option>
+                        </select>
                     </div>
 
                     <div>
-                        <label for="ingredientes" class="block text-sm font-medium text-gray-700">Ingredientes (separados por coma)</label>
-                        <input type="text" id="ingredientes" name="ingredientes" required
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border"
-                               placeholder="ej: Huevo, Patata, Aceite">
+                        <label class="block text-sm font-medium text-gray-700">URL de la Imagen</label>
+                        <input type="url" name="imagen_url" placeholder="https://ejemplo.com/foto.jpg" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
                     </div>
 
-                    <div class="flex items-center justify-between pt-2">
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 w-full sm:w-auto">
-                            Guardar Receta
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700">Ingredientes (separados por comas)</label>
+                        <input type="text" name="ingredientes" placeholder="Ej: Harina, Huevos, Leche" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                    </div>
+                    
+                    <div class="md:col-span-2 pt-4">
+                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition duration-200">
+                            Guardar Receta en el Catálogo
                         </button>
-                        <p id="creation-status" class="text-sm font-medium text-gray-600"></p>
                     </div>
                 </form>
+                <p id="creation-status" class="mt-4 text-center text-sm font-medium text-gray-600"></p>
+                <p id="status-message" class="mt-4 text-center font-medium"></p>
             </div>
         </div>
 
-        <div class="mb-6">
-            <input type="text" id="search-input" placeholder="Buscar recetas por título o ingrediente..."
-                   class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        <div id="recetas-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <p class="text-center text-gray-500 col-span-full py-20">Cargando recetas...</p>
         </div>
-        
-        <p id="status-message" class="text-center text-sm text-gray-600 mb-4">Cargando recetas...</p>
-        
-        <div id="recetas-list" class="space-y-4">
-            </div>
     </div>
 
     <div id="recipe-modal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
-            <h2 id="modal-title" class="text-3xl font-extrabold text-indigo-700 mb-4">Detalle de la Receta</h2>
             
-            <div id="modal-content-loaded" class="space-y-6 text-gray-700">
+            <div id="modal-content-loaded">
+                <h2 id="modal-title" class="text-3xl font-bold text-indigo-600 mb-4"></h2>
                 
-                <div id="modal-details" class="grid grid-cols-2 gap-4 text-sm bg-indigo-50 p-4 rounded-lg">
-                    <div><span class="font-semibold">ID Receta:</span> <span id="modal-id"></span></div>
-                    <div><span class="font-semibold">Tiempo:</span> <span id="modal-tiempo"></span></div>
-                    <div class="col-span-2"><span class="font-semibold">Dificultad:</span> <span id="modal-dificultad"></span></div>
-                </div>
-
-                <p id="modal-avg-rating" class="text-lg font-semibold text-gray-800 mb-2 text-center pt-2 border-t mt-4"></p>
-
-                <div>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Descripción</h3>
-                    <p id="modal-description" class="italic"></p>
-                </div>
+                <img id="modal-imagen" src="" alt="Receta" class="w-full h-64 object-cover rounded-xl mb-6 shadow-md">
                 
-                <div>
-                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Ingredientes</h3>
-                    <ul id="modal-ingredientes" class="list-disc list-inside ml-4">
-                        </ul>
-                </div>
-                
-                <div class="pt-6 border-t mt-6">
-                    <h3 class="text-xl font-semibold text-gray-800 mb-4">Valorar Receta</h3>
-                    
-                    <form id="rating-form" class="space-y-4 p-4 border border-green-200 rounded-lg bg-green-50">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Puntuación:</label>
-                            <div class="rating-input flex justify-start items-center">
-                                <input type="radio" id="star5" name="puntuacion" value="5" required /><label for="star5" title="5 estrellas">★</label>
-                                <input type="radio" id="star4" name="puntuacion" value="4" /><label for="star4" title="4 estrellas">★</label>
-                                <input type="radio" id="star3" name="puntuacion" value="3" /><label for="star3" title="3 estrellas">★</label>
-                                <input type="radio" id="star2" name="puntuacion" value="2" /><label for="star2" title="2 estrellas">★</label>
-                                <input type="radio" id="star1" name="puntuacion" value="1" /><label for="star1" title="1 estrella">★</label>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="text-sm text-gray-500 font-semibold uppercase tracking-wider">ID de Catálogo</p>
+                            <p id="modal-id" class="text-gray-800 font-mono"></p>
+                        </div>
+                        <div class="flex gap-4">
+                            <div class="flex-1 bg-indigo-50 p-4 rounded-lg">
+                                <p class="text-sm text-indigo-600 font-semibold">⏱ Tiempo</p>
+                                <p id="modal-tiempo" class="text-xl font-bold"></p>
+                            </div>
+                            <div class="flex-1 bg-green-50 p-4 rounded-lg">
+                                <p class="text-sm text-green-600 font-semibold">📊 Dificultad</p>
+                                <p id="modal-dificultad" class="text-xl font-bold"></p>
                             </div>
                         </div>
+                        <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
+                            <p class="text-sm text-yellow-700 font-semibold">⭐ Valoración Media</p>
+                            <p id="modal-avg-rating" class="text-2xl font-black text-yellow-600">Cargando...</p>
+                        </div>
+                    </div>
 
+                    <div class="space-y-4">
                         <div>
-                            <label for="rating-comment" class="block text-sm font-medium text-gray-700">Comentario (Opcional):</label>
+                            <h3 class="text-lg font-bold text-gray-800 border-b-2 border-indigo-100 pb-1 mb-2">Descripción</h3>
+                            <p id="modal-description" class="text-gray-600 leading-relaxed"></p>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-800 border-b-2 border-indigo-100 pb-1 mb-2">Ingredientes</h3>
+                            <ul id="modal-ingredientes" class="list-disc list-inside text-gray-600 space-y-1"></ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-10 pt-8 border-t border-gray-200">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-6">Valoraciones y Comentarios</h3>
+                    
+                    <form id="rating-form" class="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Puntuación (1-5):</label>
+                                <input type="number" name="puntuacion" min="1" max="5" required
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Tu Nombre:</label>
+                                <input type="text" name="usuario" required
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                            </div>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700">Comentario (Opcional):</label>
                             <textarea id="rating-comment" name="comentario" rows="3"
                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border"></textarea>
                         </div>
@@ -200,12 +203,12 @@
                             <p id="rating-status" class="text-sm font-medium text-gray-600"></p>
                         </div>
                     </form>
-                </div>
 
-                <div class="pt-6 border-t mt-6">
-                    <h3 class="text-xl font-semibold text-gray-800 mb-4">Comentarios Existentes</h3>
-                    <div id="modal-ratings-list" class="space-y-4 max-h-64 overflow-y-auto p-3 rounded-lg bg-gray-50 border border-gray-200 shadow-inner">
-                        <p class="text-gray-500 text-center" id="no-comments-message">Cargando comentarios...</p>
+                    <div class="pt-6">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Comentarios de la Comunidad</h3>
+                        <div id="modal-ratings-list" class="space-y-4 max-h-80 overflow-y-auto p-4 rounded-xl bg-white border border-gray-200 shadow-inner">
+                            <p class="text-gray-500 text-center" id="no-comments-message">Cargando comentarios...</p>
+                        </div>
                     </div>
                 </div>
             </div>

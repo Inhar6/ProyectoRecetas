@@ -1,16 +1,16 @@
-receta_id,titulo,ingredientes,pasos
-REC001,Paella de Marisco,Arroz,Marisco,Cocer arroz con marisco.
-REC002,Tortilla Española,Huevo,Patata,Freír patatas y mezclar con huevo.
-REC003,Gazpacho Andaluz,Tomate,Pepino,Triturar todos los ingredientes.
-REC004,Lentejas Estofadas,Lentejas,Chorizo,Cocer las lentejas con verduras y chorizo.
-REC005,Pinchos Morunos,Cerdo,Pimentón,Marinar el cerdo en pimentón y asar en brochetas.
-REC006,Pollo al Chilindrón,Pollo,Pimientos,Guisar el pollo con pimientos rojos y cebolla.
-REC007,Crema de Calabaza,Calabaza,Nata,Hervir la calabaza y triturar con nata.
-REC008,Sopa de Ajo,Pan,Ajo,Freír el ajo en aceite y añadir el pan y caldo.
-REC009,Fideuá de Gandía,Fideos,Marisco,Cocer los fideos en caldo de pescado con marisco.
-REC010,Papas Arrugadas,Patatas,Sal,Hervir las patatas con mucha sal hasta que se arruguen.
-REC011,Bacalao a la Vizcaína,Bacalao,Pimientos Choriceros,Cocinar el bacalao con salsa de pimientos choriceros.
-REC012,Tarta de Santiago,Almendras,Huevo,Mezclar almendras molidas con azúcar y huevo y hornear.
-REC013,Marmitako,Bonito,Patatas,Guisar el bonito y las patatas en una cazuela.
-REC014,Churros con Chocolate,Harina,Chocolate,Freír la masa de harina y servir con chocolate caliente.
-REC015,Tiramisú,Mascarpone,Café,Alternar capas de bizcochos mojados en café con crema de mascarpone.
+receta_id,titulo,descripcion,tiempo_preparacion,dificultad,ingredientes,imagen_url
+REC001,Paella Valenciana,El clásico plato español con arroz azafranado y mariscos frescos.,60,Media,Arroz bomba;Mejillones;Gambas;Calamar;Azafrán;Caldo de pescado,https://images.unsplash.com/photo-1534080564607-c9275445f29c?auto=format&fit=crop&w=800&q=80
+REC002,Tortilla de Patatas,La receta tradicional española con patatas tiernas y huevo revuelto.,30,Fácil,Patatas;Huevos;Cebolla;Aceite de oliva;Sal,https://images.unsplash.com/photo-1510385935319-3b3047bb53f0?auto=format&fit=crop&w=800&q=80
+REC003,Hamburguesa Gourmet,Hamburguesa de ternera con queso cheddar fundido y cebolla caramelizada.,20,Fácil,Carne de ternera;Pan de brioche;Queso cheddar;Cebolla;Lechuga;Tomate,https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=800&q=80
+REC004,Sushi Variado,Selección de nigiris y makis de salmón y atún fresco.,50,Difícil,Arroz para sushi;Alga nori;Salmón;Atún;Vinagre de arroz;Wasabi,https://images.unsplash.com/photo-1579871494447-9811cf80d66c?auto=format&fit=crop&w=800&q=80
+REC005,Pizza Margherita,Pizza napolitana auténtica con mozzarella fresca y albahaca.,15,Fácil,Harina de fuerza;Tomate natural;Mozzarella de búfala;Albahaca;Aceite de oliva,https://images.unsplash.com/photo-1574071318508-1cdbad80ad50?auto=format&fit=crop&w=800&q=80
+REC006,Tacos al Pastor,Tacos mexicanos tradicionales con carne marinada y piña.,40,Media,Tortillas de maíz;Lomo de cerdo;Chile ancho;Piña;Cebolla;Cilantro,https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?auto=format&fit=crop&w=800&q=80
+REC007,Ensalada César,Clásica ensalada con pollo a la brasa y salsa César casera.,15,Fácil,Lechuga romana;Pechuga de pollo;Pan tostado;Queso parmesano;Salsa César,https://images.unsplash.com/photo-1550317138-10000687ad32?auto=format&fit=crop&w=800&q=80
+REC008,Pasta Carbonara,Receta original italiana con huevo y guanciale (sin nata).,25,Media,Espaguetis;Huevos;Queso pecorino;Guanciale;Pimienta negra,https://images.unsplash.com/photo-1612874742237-6526221588e3?auto=format&fit=crop&w=800&q=80
+REC009,Ramen Shoyu,Sopa japonesa de fideos con base de soja y huevo marinado.,90,Difícil,Fideos ramen;Caldo de pollo;Soja;Huevo;Panceta;Alga nori;Cebollino,https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=800&q=80
+REC010,Salmón a la Plancha,Filete de salmón rosado con espárragos trigueros y limón.,20,Fácil,Salmón;Espárragos;Limón;Eneldo;Aceite de oliva,https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=800&q=80
+REC011,Curry de Pollo,Guiso aromático con especias indias y leche de coco.,45,Media,Pollo;Leche de coco;Curry en polvo;Jengibre;Cebolla;Arroz basmati,https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?auto=format&fit=crop&w=800&q=80
+REC012,Tarta de Queso,Postre cremoso estilo New York con base de galleta.,60,Media,Queso crema;Galletas maría;Mantequilla;Azúcar;Huevos;Mermelada,https://images.unsplash.com/photo-1524351199679-46cddfdbf720?auto=format&fit=crop&w=800&q=80
+REC013,Lasaña de Carne,Láminas de pasta rellenas de boloñesa y bechamel gratinada.,75,Media,Pasta lasaña;Carne picada;Tomate;Bechamel;Queso rallado,https://images.unsplash.com/photo-1502413177826-62074a21370a?auto=format&fit=crop&w=800&q=80
+REC014,Ceviche Peruano,Pescado blanco marinado en cítricos y ají.,30,Difícil,Pescado blanco;Limón;Cebolla roja;Cilantro;Ají limo;Camote,https://images.unsplash.com/photo-1535399831218-d5bd36d1a6b3?auto=format&fit=crop&w=800&q=80
+REC015,Brownie de Chocolate,Bizcocho húmedo de chocolate con nueces crujientes.,35,Fácil,Chocolate negro;Mantequilla;Harina;Azúcar;Huevos;Nueces,https://images.unsplash.com/photo-1461023058943-07fcbe16d735?auto=format&fit=crop&w=800&q=80
