@@ -20,7 +20,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
         
       - name: Build & Run Docker Compose 🐳
-        # Añadimos -f src/docker-compose.yml porque ahora el archivo no está en la raíz
+        # Usamos -f src/docker-compose.yml porque el archivo está dentro de la carpeta src
         run: docker compose -f src/docker-compose.yml up --build -d
 
       # --- Verificación de Salud y Estabilidad ---
@@ -29,16 +29,16 @@ jobs:
           echo "Esperando 25 segundos para que los contenedores se estabilicen..."
           sleep 25
           
-          # Buscamos los logs apuntando al archivo en src/
-          if [ -z "$(docker compose -f src/docker-compose.yml logs ms-catalogo-py | grep "Tablas recreadas con la columna imagen_url.")" ]; then
-            echo "❌ ERROR: El Microservicio de Catálogo no inició correctamente. Revisar logs."
+          # IMPORTANTE: La frase de grep debe ser EXACTA a la que aparece en tu app.py
+          if [ -z "$(docker compose -f src/docker-compose.yml logs ms-catalogo-py | grep "Tablas de PostgreSQL verificadas/creadas con éxito.")" ]; then
+            echo "❌ ERROR: El Microservicio de Catálogo no inició correctamente o no conectó a la DB."
             docker compose -f src/docker-compose.yml logs ms-catalogo-py
             exit 1 
           else
             echo "✅ El Microservicio de Catálogo está conectado y listo."
           fi
           
-      # --- Prueba de Integración ---
+      # --- Prueba de Integración (End-to-End) ---
       - name: Run Gateway Integration Test ✅
         run: |
           echo "Probando el endpoint principal del Gateway..."
@@ -60,6 +60,7 @@ jobs:
           docker compose -f src/docker-compose.yml logs api-gateway
           exit 1
 
+      # --- Limpieza de Contenedores ---
       - name: Stop Containers 🛑
         if: always()
-        run: docker compose -f src/docker-compose.yml down
+        run: docker compose -f src/docker-compose.yml down -v
