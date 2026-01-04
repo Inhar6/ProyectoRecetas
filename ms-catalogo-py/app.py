@@ -46,8 +46,8 @@ class Receta(db.Model):
     tiempo_preparacion = db.Column(db.Integer, nullable=False)
     dificultad = db.Column(db.String(50), nullable=False)
     ingredientes = db.Column(db.Text, nullable=False) 
-    imagen_url = db.Column(db.String(500), nullable=True) # <--- NUEVA COLUMNA
     fecha_creacion = db.Column(db.DateTime, server_default=db.func.now())
+    imagen_url = db.Column(db.String(500), nullable=True)
 
 # ----------------------------------------------------
 # 3. FUNCIONES DE UTILIDAD
@@ -70,7 +70,8 @@ def serialize_receta(receta):
         'tiempo_preparacion': receta.tiempo_preparacion,
         'dificultad': receta.dificultad,
         'ingredientes': ingredientes_list,
-        'fecha_creacion': receta.fecha_creacion.isoformat()
+        'fecha_creacion': receta.fecha_creacion.isoformat(),
+        'imagen_url': receta.imagen_url
     }
 
 

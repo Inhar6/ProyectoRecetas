@@ -53,16 +53,19 @@ document.addEventListener('DOMContentLoaded', () => {
         recipeForm.addEventListener('submit', handleRecipeCreation);
     }
 
+
     // 6. CERRAR MODAL (Lo que no te cerraba)
     // Buscamos por ID que es más seguro que por clase
-    const closeBtn = document.getElementById('close-modal') || document.querySelector('.close');
-    if (closeBtn) {
-        closeBtn.addEventListener('click', closeModal);
-    }
+    modalCloseBtn.onclick = function() {
+        modal.style.display = 'none';
+    };
 
-    window.addEventListener('click', (event) => {
-        if (event.target === modal) closeModal();
-    });
+    // Cerrar modal al hacer clic fuera (esto ahora sí funcionará al quitar el error de arriba)
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    };
 });
 
 // -----------------------------------------------------------------------
@@ -96,38 +99,62 @@ async function loadRecetas() {
  * @param {Array} recetas - Array de objetos receta a renderizar.
  */
 function renderRecetas(recetas) {
+    const listContainer = document.getElementById('recetas-list');
+    if (!listContainer) return;
+
     listContainer.innerHTML = ''; // Limpia la lista anterior
+
     if (recetas.length === 0) {
-        listContainer.innerHTML = '<p class="text-center text-gray-500">No se encontraron recetas.</p>';
+        listContainer.innerHTML = '<p class="text-center text-gray-500 col-span-full">No se encontraron recetas.</p>';
         return;
     }
 
+    // Definimos la imagen por defecto una sola vez fuera del bucle
+    const imagenDefault = 'https://images.unsplash.com/photo-1495195129352-aec325a55b65?q=80&w=400&auto=format&fit=crop';
+
     recetas.forEach(receta => {
+        // Manejo seguro de ingredientes
         const ingredientesTexto = Array.isArray(receta.ingredientes) 
             ? receta.ingredientes.slice(0, 3).join(', ') + (receta.ingredientes.length > 3 ? '...' : '')
             : 'N/A';
 
-        // NUEVO: Definir imagen o usar una por defecto
-        const imagenUrl = receta.imagen_url ? receta.imagen_url : 'https://images.unsplash.com/photo-1495195129352-aec325a55b65?q=80&w=400&auto=format&fit=crop';   
+        // URL inicial: si no hay en la BD, usamos la de defecto
+        const srcInicial = receta.imagen_url ? receta.imagen_url : imagenDefault;
+
         const card = document.createElement('div');
-        // Añadimos overflow-hidden para que la imagen no se salga de los bordes redondeados
-        card.className = 'bg-white border border-gray-200 rounded-xl shadow-lg hover:shadow-xl transition duration-300 cursor-pointer overflow-hidden';
+        card.className = 'bg-white border border-gray-200 rounded-xl shadow-lg hover:shadow-xl transition duration-300 overflow-hidden flex flex-col';
         
         card.innerHTML = `
-            <img src="${imagenUrl}" alt="${receta.titulo}" class="w-full h-48 object-cover border-b border-gray-100">
+            <div class="relative">
+                <img src="${srcInicial}" 
+                     alt="${receta.titulo}" 
+                     class="w-full h-48 object-cover border-b border-gray-100"
+                     onerror="this.onerror=null; this.src='${imagenDefault}';">
+                <div class="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg text-xs font-bold text-indigo-600 shadow-sm">
+                    ${receta.tiempo_preparacion} min
+                </div>
+            </div>
             
-            <div class="p-6"> <h2 class="text-2xl font-bold text-indigo-600 mb-2">${receta.titulo}</h2>
-                <p class="text-gray-700 mb-3 line-clamp-2">${receta.descripcion}</p>
-                <p class="text-sm text-gray-500 mb-2"><span class="font-semibold">Tiempo:</span> ${receta.tiempo_preparacion} min</p>
-                <p class="text-sm text-gray-500 mb-4"><span class="font-semibold">Ingredientes clave:</span> ${ingredientesTexto}</p>
-                <button class="view-details-btn bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium py-1 px-3 rounded-lg transition duration-200" 
-                        data-id="${receta.id}">Ver Detalle y Valorar</button>
+            <div class="p-6 flex-grow flex flex-col">
+                <h2 class="text-2xl font-bold text-indigo-600 mb-2">${receta.titulo}</h2>
+                <p class="text-gray-700 mb-3 line-clamp-2 text-sm">${receta.descripcion}</p>
+                
+                <div class="mt-auto">
+                    <p class="text-xs text-gray-500 mb-4">
+                        <span class="font-semibold text-gray-700">Ingredientes:</span> ${ingredientesTexto}
+                    </p>
+                    <button class="view-details-btn bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium py-2 px-4 rounded-lg transition duration-200 w-full" 
+                            data-id="${receta.id}">
+                        Ver Detalle y Valorar
+                    </button>
+                </div>
             </div>
         `;
-        // El resto del código del botón se queda igual
-        card.querySelector('.view-details-btn').addEventListener('click', () => {
-            openModal(receta.id);
-        });
+
+        // Asignar evento al botón
+        const btn = card.querySelector('.view-details-btn');
+        btn.addEventListener('click', () => openModal(receta.id));
+
         listContainer.appendChild(card);
     });
 }
@@ -469,7 +496,8 @@ async function handleRecipeCreation(e) {
         descripcion: form.elements['descripcion'].value,
         tiempo_preparacion: parseInt(form.elements['tiempo_preparacion'].value),
         dificultad: form.elements['dificultad'].value,
-        ingredientes: ingredientesArray // Lista de strings
+        ingredientes: ingredientesArray, // Lista de strings
+        imagen_url: form.elements['imagen_url'] ? form.elements['imagen_url'].value : ''
     };
     
     statusElement.textContent = 'Creando receta...';
